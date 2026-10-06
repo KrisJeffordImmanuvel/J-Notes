@@ -1,0 +1,38 @@
+/* Design tokens, themes and base elements */
+:root{
+  --bg:#f5f4ef;--panel:#faf9f5;--surface:#ffffff;--text:#1f2a33;--muted:#6b7680;--line:#e4e1d8;
+  --hover:rgba(31,42,51,.055);--accent:#2f6b5e;--accent-ink:#245549;--accent-soft:#e3eeea;--on-accent:#fff;
+  --danger:#b4483c;--warn:#a8741a;--shadow:0 10px 30px rgba(20,30,35,.12),0 2px 6px rgba(20,30,35,.06);
+  --mood5:#3f9b6e;--mood4:#86b956;--mood3:#d6b043;--mood2:#de8a4e;--mood1:#c4594f;
+  --font-ui:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans","Noto Sans Tamil","Noto Sans Devanagari",sans-serif;
+  --font-serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --ed-font:var(--font-ui);--ed-size:17px;--ed-lh:1.7;--ed-width:720px;--r:10px;
+  color-scheme:light;
+}
+[data-theme="dark"]{
+  --bg:#14181b;--panel:#191e22;--surface:#1e2428;--text:#e2e6e8;--muted:#929ea6;--line:#2c3439;
+  --hover:rgba(255,255,255,.06);--accent:#6db3a1;--accent-ink:#8fcab9;--accent-soft:#213531;--on-accent:#0f1d1a;
+  --danger:#e07a6e;--warn:#e0b04e;--shadow:0 10px 30px rgba(0,0,0,.45);color-scheme:dark;
+}
+[data-theme="night"]{
+  --bg:#1b1611;--panel:#201a14;--surface:#251e17;--text:#eadcc5;--muted:#a8977d;--line:#3a2f24;
+  --hover:rgba(255,220,170,.06);--accent:#d6a46e;--accent-ink:#e6bb8a;--accent-soft:#3a2c1e;--on-accent:#24190f;
+  --danger:#e08a6e;--warn:#e0b04e;--shadow:0 10px 30px rgba(0,0,0,.5);color-scheme:dark;
+}
+[data-theme="contrast"]{
+  --bg:#000;--panel:#000;--surface:#000;--text:#fff;--muted:#e6e6e6;--line:#fff;
+  --hover:rgba(255,255,255,.16);--accent:#ffd60a;--accent-ink:#ffd60a;--accent-soft:#332b00;--on-accent:#000;
+  --danger:#ff8a80;--warn:#ffd60a;--shadow:0 0 0 2px #fff;color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.5 var(--font-ui);-webkit-font-smoothing:antialiased;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hidden{display:none!important}
+.spacer{flex:1}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+svg.i{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}

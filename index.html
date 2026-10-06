@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="J Notes — a private, local-first notes and diary app.">
+<meta name="theme-color" content="#faf9f5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="J Notes">
+<title>J Notes</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%232f6b5e'/%3E%3Ctext x='32' y='45' font-family='Georgia,serif' font-size='38' font-weight='700' fill='white' text-anchor='middle'%3EJ%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="./manifest.webmanifest" data-pwa>
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" data-pwa>
+<script>
+  // Apply the saved theme before first paint to avoid a flash.
+  try { var t = localStorage.getItem('jnotes:theme') || 'auto'; document.documentElement.dataset.theme = t === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : t; } catch (e) { }
+</script>
+</head>
+<body>
+<div id="app" class="app">
+  <aside id="sidebar" class="sidebar" aria-label="Navigation"></aside>
+  <div class="scrim" data-act="closeNav"></div>
+  <main id="main" class="main"></main>
+</div>
+<div id="modalRoot"></div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<div id="lockScreen" class="lock hidden" role="dialog" aria-label="Unlock J Notes"></div>
+<noscript><p style="padding:20px">J Notes needs JavaScript to run.</p></noscript>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

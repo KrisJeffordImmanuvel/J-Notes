@@ -1,0 +1,48 @@
+/* Focus mode, responsive rules and small extras */
+/* focus mode */
+.app.focus{grid-template-columns:0 1fr}
+.app.focus .sidebar{display:none}
+.app.focus .notes-view,.app.focus .diary-view{grid-template-columns:0 1fr}
+.app.focus .list-pane{display:none}
+.app.focus .toolbar{opacity:0;transition:opacity .2s}
+.app.focus .toolbar:hover,.app.focus .toolbar:focus-within{opacity:1}
+.app.focus .ed-top{border-bottom-color:transparent}
+
+@media (max-width:1000px){
+  .notes-view{grid-template-columns:270px 1fr}
+  .diary-view{grid-template-columns:300px 1fr}
+  .card.hero{grid-column:auto}
+}
+@media (max-width:820px){
+  .app{grid-template-columns:1fr}
+  .sidebar{position:fixed;inset:0 auto 0 0;width:min(84vw,290px);z-index:60;transform:translateX(-102%);transition:transform .2s ease}
+  .app.nav-open .sidebar{transform:none;box-shadow:var(--shadow)}
+  kbd{display:none}
+  .app.nav-open .scrim{display:block;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:55}
+  .mobile-only{display:inline-grid!important}
+  .notes-view,.diary-view{grid-template-columns:1fr}
+  .notes-view.show-editor .list-pane,.diary-view.show-editor .list-pane{display:none}
+  .notes-view:not(.show-editor) .editor-pane,.diary-view:not(.show-editor) .editor-pane{display:none}
+  .list-pane{border-right:0}
+  .ed-inner{padding:20px 16px 100px}
+  .ed-title{font-size:24px}
+  .home{padding:20px 16px 50px}
+  .grid{grid-template-columns:1fr}
+  .settings{grid-template-columns:1fr}
+  .settings nav{display:flex;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);gap:2px}
+  .settings nav button{white-space:nowrap;width:auto}
+  .settings section{padding:12px 4px}
+  .hist{grid-template-columns:1fr}
+  .hist-list{border-right:0;max-height:24vh;border-bottom:1px solid var(--line)}
+  .words{grid-template-columns:repeat(3,1fr)}
+  .backdrop{padding:4vh 10px 10px}
+  .ed-status .lbl{display:none}
+  .hide-sm{display:none!important}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media print{.sidebar,.ed-top,.toolbar,.ed-foot,.list-pane{display:none!important}}
+.chip svg.i{width:12px;height:12px}
+.chips>svg.i{width:15px;height:15px;color:var(--muted)}
+.ed-meta>svg.i{width:15px;height:15px}
+.tag-input::-webkit-calendar-picker-indicator{display:none!important}
+.snap-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
