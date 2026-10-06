@@ -1,0 +1,48 @@
+/* Home and diary */
+/* home */
+.scroll{flex:1;overflow-y:auto;min-height:0}
+.home{max-width:1040px;margin:0 auto;padding:34px 32px 60px}
+.home-head h1{font-size:28px;margin:0;letter-spacing:-.02em}
+.home-head p{margin:4px 0 0;color:var(--muted)}
+.home-search{display:flex;align-items:center;gap:10px;width:100%;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 14px;color:var(--muted);margin:22px 0;text-align:left;font-size:15px}
+.home-search kbd{margin-left:auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+.card h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:flex;align-items:center;gap:8px}
+.card.hero{background:linear-gradient(135deg,var(--accent-soft),var(--surface) 70%);grid-column:span 2}
+.card.hero .big{font-size:20px;font-weight:650;margin:0 0 6px;letter-spacing:-.01em;font-family:var(--font-serif)}
+.card .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.mini{display:flex;flex-direction:column;gap:2px}
+.mini button{display:flex;align-items:center;gap:8px;border:0;background:none;text-align:left;padding:7px 8px;margin:0 -8px;border-radius:8px;color:var(--text);min-width:0}
+.mini button:hover{background:var(--hover)}
+.mini button span.t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mini button span.d{color:var(--muted);font-size:12px;white-space:nowrap}
+.quick textarea{width:100%;min-height:80px;resize:vertical;border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:10px;outline:none;line-height:1.5}
+.quick textarea:focus{border-color:var(--accent)}
+.stat-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:9px;font-size:13.5px}
+.stat-list li{display:flex;gap:9px;align-items:flex-start}
+.stat-list svg.i{width:16px;height:16px;margin-top:2px}
+.ok{color:var(--mood5)}.warnc{color:var(--warn)}
+
+/* diary */
+.cal{padding:4px 14px 10px}
+.cal-nav{display:flex;align-items:center;gap:4px;margin-bottom:8px}
+.cal-nav strong{flex:1;font-size:15px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-wd{font-size:11px;color:var(--muted);text-align:center;padding:4px 0;font-weight:600}
+.cal-day{aspect-ratio:1;border:0;background:none;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:13px;color:var(--text);position:relative}
+.cal-day:hover{background:var(--hover)}
+.cal-day.out{color:var(--muted);opacity:.45}
+.cal-day.future{color:var(--muted)}
+.cal-day.today{box-shadow:inset 0 0 0 1.5px var(--accent);font-weight:700}
+.cal-day.sel{background:var(--accent);color:var(--on-accent)}
+.cal-day .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.cal-day.sel .dot{box-shadow:0 0 0 1.5px var(--on-accent)}
+.cal-day .dot.none{background:transparent}
+.diary-side{overflow-y:auto;flex:1;min-height:0}
+.side-block{padding:12px 16px;border-top:1px solid var(--line)}
+.side-block h4{margin:0 0 8px;font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.mood-chart{display:flex;align-items:flex-end;gap:2px;height:56px}
+.mood-chart i{flex:1;border-radius:3px 3px 1px 1px;background:var(--line);min-height:3px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
