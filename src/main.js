@@ -7,7 +7,11 @@ import './styles/responsive.css';
 import { boot } from './app.js';
 import { installGlobalHandlers } from './ui/actions.js';
 import { setupPWA } from './ui/pwa.js';
+import { installAccountUI } from './ui/account.js';
+import { installSyncTriggers } from './data/sync.js';
 
 installGlobalHandlers();
+installAccountUI();
+installSyncTriggers();
 setupPWA();
 boot();

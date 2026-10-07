@@ -3,6 +3,7 @@ import { $, esc } from '../lib/util.js';
 import { icon } from '../lib/icons.js';
 import { S, UI, vault, live, allTags } from '../data/state.js';
 import { saveState, setSaveState } from '../data/persist.js';
+import { sidebarSyncButton } from './account.js';
 
 export function renderSidebar() {
   const sb = $('#sidebar'), L = live(), f = UI.filter, v = UI.view;
@@ -25,7 +26,7 @@ export function renderSidebar() {
   <div class="nav-section"></div>
   <button class="nav-item${on(v === 'notes' && f.kind === 'trash')}" data-act="filter" data-kind="trash">${icon('trash')} Trash ${trashN ? `<span class="count">${trashN}</span>` : ''}</button>
   <button class="nav-item" data-act="settings">${icon('gear')} Settings</button>
-  <div class="side-foot"><div class="side-status js-status"></div><span class="spacer"></span>
+  <div class="side-foot"><div class="side-status js-status"></div><span class="spacer"></span>${sidebarSyncButton()}
     ${vault.enc ? `<button class="icon-btn" data-act="lock" title="Lock now (Alt+L)" aria-label="Lock now">${icon('lock')}</button>` : `<button class="icon-btn" data-act="settings" data-tab="security" title="App lock is off" aria-label="Set up app lock">${icon('unlock')}</button>`}</div>`;
   setSaveState(saveState);
 }

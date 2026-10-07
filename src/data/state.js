@@ -15,11 +15,14 @@ export function newNote(over = {}) {
   return Object.assign({ id: uid(), type: 'note', title: '', body: '', notebookId: null, tags: [], pinned: false, fav: false, created: t, updated: t, deleted: null, history: [] }, over);
 }
 
+// Fixed ids for the starter content, so two fresh installs don't duplicate it when they sync.
+export const WELCOME_ID = 'welcome', STARTER_NOTEBOOKS = [['nb-start', 'Getting started'], ['nb-personal', 'Personal'], ['nb-work', 'Work']];
+
 export function defaultData() {
-  const gs = uid();
+  const gs = STARTER_NOTEBOOKS[0][0];
   const welcome = newNote({
-    title: 'Welcome to J Notes', notebookId: gs, pinned: true, tags: ['start'],
-    body: `J Notes is a calm, private place for your notes and your diary. Everything stays **on this device** — there is no account, no tracking and no ads.
+    id: WELCOME_ID, title: 'Welcome to J Notes', notebookId: gs, pinned: true, tags: ['start'],
+    body: `J Notes is a calm, private place for your notes and your diary. Everything stays **on this device** — no account needed, no tracking and no ads. If you like, sign in with Google to sync your notes across your devices through your own Google Drive.
 
 ## Try these first
 - [ ] Write today's diary entry (press **Alt + D**)
@@ -42,14 +45,15 @@ Install J Notes from your browser's menu (“Install app” or “Add to Home Sc
   });
   return {
     v: 1, settings: { ...DEFAULT_SETTINGS },
-    notebooks: [{ id: gs, name: 'Getting started' }, { id: uid(), name: 'Personal' }, { id: uid(), name: 'Work' }],
-    notes: [welcome], attachments: {}
+    notebooks: STARTER_NOTEBOOKS.map(([id, name]) => ({ id, name, updated: 0 })),
+    notes: [welcome], attachments: {}, tombstones: {}
   };
 }
 
 export function migrate(d) {
   d.settings = Object.assign({}, DEFAULT_SETTINGS, d.settings || {});
-  d.notebooks = d.notebooks || []; d.notes = d.notes || []; d.attachments = d.attachments || {};
+  d.notebooks = d.notebooks || []; d.notes = d.notes || []; d.attachments = d.attachments || {}; d.tombstones = d.tombstones || {};
+  d.notebooks.forEach(b => { if (b.updated == null) b.updated = 0; });
   d.notes.forEach(n => { n.tags = n.tags || []; n.history = n.history || []; if (n.deleted === undefined) n.deleted = null; });
   return d;
 }
@@ -81,10 +85,27 @@ export function snapshotHistory(n, force) {
   if (h.length > 40) h.splice(0, h.length - 40);
 }
 
-/** Delete notes that have been in the Trash for 30 days and unreferenced attachments. */
+/** Permanently remove notes, leaving a tombstone so sync doesn't bring them back. */
+export function forgetNotes(list) {
+  const gone = new Set(list), t = Date.now();
+  for (const n of gone) S.tombstones[n.id] = t;
+  S.notes = S.notes.filter(n => !gone.has(n));
+}
+export function forgetNotebook(nb) {
+  const t = Date.now();
+  S.notes.forEach(n => { if (n.notebookId === nb.id) { n.notebookId = null; n.updated = t; } });
+  S.notebooks = S.notebooks.filter(b => b !== nb);
+  S.tombstones[nb.id] = t;
+}
+/** Mark a note as moved to / restored from the Trash (bumps `updated` so the change syncs). */
+export function setDeleted(n, on) { n.deleted = on ? Date.now() : null; n.updated = Date.now(); }
+
+/** Delete notes that have been in the Trash for 30 days, old tombstones and unreferenced attachments. */
 export function purgeTrash() {
   const cutoff = Date.now() - 30 * 864e5;
-  S.notes = S.notes.filter(n => !n.deleted || n.deleted > cutoff);
+  forgetNotes(S.notes.filter(n => n.deleted && n.deleted <= cutoff));
+  const tombCutoff = Date.now() - 180 * 864e5;
+  for (const [id, t] of Object.entries(S.tombstones)) if (t < tombCutoff) delete S.tombstones[id];
   // Private notes keep their text encrypted, so we can't tell which images they use — keep all.
   if (!S.notes.some(n => n.priv)) {
     const text = S.notes.map(n => n.body + n.history.map(h => h.body).join('')).join('\n');

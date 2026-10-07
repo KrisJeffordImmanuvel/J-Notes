@@ -2,7 +2,7 @@
 import { $, $$, uid, ymd, pad, esc, fmtTime } from '../lib/util.js';
 import { store, KEY, SNAP, THEMEKEY, prefs, FOLDERKEY } from '../lib/storage.js';
 import { PROMPTS } from '../data/constants.js';
-import { S, UI, vault, cur, live, diaryFor, isEmptyNote } from '../data/state.js';
+import { S, UI, vault, cur, live, diaryFor, isEmptyNote, forgetNotes, forgetNotebook, setDeleted } from '../data/state.js';
 import { scheduleSave, persist, saveState, getSnaps, snapshotNow, flags } from '../data/persist.js';
 import { disableLock, newRecovery } from '../data/vault.js';
 import { exportZip, exportBackup } from '../data/exporter.js';
@@ -23,6 +23,9 @@ import { noteMenu } from './note-menu.js';
 import { lockApp, setupLock, showRecovery } from './lock.js';
 import { openSettings, renderSettings, setSettingsTab } from './settings.js';
 import { installApp } from './pwa.js';
+import { accountActions } from './account.js';
+import { SYNCKEY } from '../data/sync.js';
+import { forgetToken } from '../lib/google.js';
 
 const H = {
   closeModal: () => closeModal(),
@@ -43,14 +46,14 @@ const H = {
   lockSetup: () => setupLock(),
   lockOff: async () => { if (await confirmModal({ title: 'Turn off app lock?', text: 'Your notes will be stored without encryption on this device.', ok: 'Turn off', danger: true })) { await disableLock(); render(); toast('App lock turned off'); } },
   newRecovery: async () => { if (await confirmModal({ title: 'Create a new recovery key?', text: 'Your old recovery key will stop working.', ok: 'Create new key' })) showRecovery(await newRecovery()); },
-  addNotebook: async () => { const name = await promptModal({ title: 'New notebook', label: 'Notebook name', ok: 'Create' }); if (name && name.trim()) { const b = { id: uid(), name: name.trim() }; S.notebooks.push(b); scheduleSave(); go('notes', { kind: 'notebook', id: b.id }); } },
+  addNotebook: async () => { const name = await promptModal({ title: 'New notebook', label: 'Notebook name', ok: 'Create' }); if (name && name.trim()) { const b = { id: uid(), name: name.trim(), updated: Date.now() }; S.notebooks.push(b); scheduleSave(); go('notes', { kind: 'notebook', id: b.id }); } },
   nbMenu: (d, el) => {
     const nb = S.notebooks.find(b => b.id === d.id); if (!nb) return;
     openMenu(el, [
-      { label: 'Rename', icon: 'edit', fn: async () => { const name = await promptModal({ title: 'Rename notebook', label: 'Name', value: nb.name, ok: 'Rename' }); if (name && name.trim()) { nb.name = name.trim(); scheduleSave(); render(); } } },
+      { label: 'Rename', icon: 'edit', fn: async () => { const name = await promptModal({ title: 'Rename notebook', label: 'Name', value: nb.name, ok: 'Rename' }); if (name && name.trim()) { nb.name = name.trim(); nb.updated = Date.now(); scheduleSave(); render(); } } },
       { label: 'New note here', icon: 'plus', fn: () => { UI.view = 'notes'; UI.filter = { kind: 'notebook', id: nb.id }; createNote(); } },
       '-',
-      { label: 'Delete notebook', icon: 'trash', danger: true, fn: async () => { if (await confirmModal({ title: `Delete “${nb.name}”?`, text: 'The notes inside are kept and moved to All notes.', ok: 'Delete notebook', danger: true })) { S.notes.forEach(n => { if (n.notebookId === nb.id) n.notebookId = null; }); S.notebooks = S.notebooks.filter(b => b !== nb); scheduleSave(); go('notes', { kind: 'all' }); } } }
+      { label: 'Delete notebook', icon: 'trash', danger: true, fn: async () => { if (await confirmModal({ title: `Delete “${nb.name}”?`, text: 'The notes inside are kept and moved to All notes.', ok: 'Delete notebook', danger: true })) { forgetNotebook(nb); scheduleSave(); go('notes', { kind: 'all' }); } } }
     ]);
   },
   sortMenu: (d, el) => openMenu(el, [['updated', 'Last edited'], ['created', 'Date created'], ['title', 'Title']].map(([k, l]) => ({ label: (UI.sort === k ? '✓ ' : '   ') + l, fn: () => { UI.sort = k; renderList(); } }))),
@@ -75,10 +78,10 @@ const H = {
   diaryBook: () => openDiaryBook(),
   clearReminder: () => { S.settings.reminder = ''; scheduleSave(); renderSettings(); },
   quickSave: () => quickSave(),
-  tidyEmpty: () => { const t = Date.now(); live().filter(n => n.type === 'note' && isEmptyNote(n)).forEach(n => n.deleted = t); scheduleSave(); render(); toast('Empty notes moved to Trash'); },
-  restoreNote: () => { const n = cur(); n.deleted = null; scheduleSave(); UI.filter = { kind: 'all' }; openNote(n.id); toast('Note restored'); },
-  destroyNote: async () => { const n = cur(); if (await confirmModal({ title: 'Delete forever?', text: 'This note and its history will be permanently removed.', ok: 'Delete forever', danger: true })) { S.notes = S.notes.filter(x => x !== n); UI.current = null; scheduleSave(); render(); } },
-  emptyTrash: async () => { const c = S.notes.filter(n => n.deleted).length; if (!c) return; if (await confirmModal({ title: 'Empty Trash?', text: `${c} note${c > 1 ? 's' : ''} will be permanently deleted.`, ok: 'Empty Trash', danger: true })) { S.notes = S.notes.filter(n => !n.deleted); UI.current = null; scheduleSave(); render(); } },
+  tidyEmpty: () => { const t = Date.now(); live().filter(n => n.type === 'note' && isEmptyNote(n)).forEach(n => { n.deleted = t; n.updated = t; }); scheduleSave(); render(); toast('Empty notes moved to Trash'); },
+  restoreNote: () => { const n = cur(); setDeleted(n, false); scheduleSave(); UI.filter = { kind: 'all' }; openNote(n.id); toast('Note restored'); },
+  destroyNote: async () => { const n = cur(); if (await confirmModal({ title: 'Delete forever?', text: 'This note and its history will be permanently removed.', ok: 'Delete forever', danger: true })) { forgetNotes([n]); UI.current = null; scheduleSave(); render(); } },
+  emptyTrash: async () => { const c = S.notes.filter(n => n.deleted).length; if (!c) return; if (await confirmModal({ title: 'Empty Trash?', text: `${c} note${c > 1 ? 's' : ''} will be permanently deleted.`, ok: 'Empty Trash', danger: true })) { forgetNotes(S.notes.filter(n => n.deleted)); UI.current = null; scheduleSave(); render(); } },
   exportZip: () => exportZip(),
   exportJson: () => exportBackup(false),
   exportEnc: () => exportBackup(true),
@@ -96,11 +99,12 @@ const H = {
     if (!await store.set(KEY, s.rec)) { flags.noSave = false; toast('Could not restore that snapshot.'); return; }
     location.reload();
   },
+  ...accountActions,
   eraseAll: async () => {
     const v = await promptModal({ title: 'Erase all data', label: 'Type ERASE to permanently delete all notes, diary entries and snapshots on this device.', ok: 'Erase everything' });
     if (v !== 'ERASE') { if (v !== null) toast('Nothing was erased.'); return; }
     flags.noSave = true;
-    await Promise.all([store.del(KEY), store.del(SNAP), store.del(FOLDERKEY)]); prefs.del(THEMEKEY);
+    await Promise.all([store.del(KEY), store.del(SNAP), store.del(FOLDERKEY), store.del(SYNCKEY)]); prefs.del(THEMEKEY); forgetToken();
     location.reload();
   }
 };

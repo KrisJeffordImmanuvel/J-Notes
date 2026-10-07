@@ -10,6 +10,7 @@ import { promptIdx } from './editor.js';
 import { renderSidebar } from './sidebar.js';
 import { openNote } from './nav.js';
 import { toast } from './toast.js';
+import { homeSyncLine } from './account.js';
 
 export function onThisDay(date) {
   const md = date.slice(5);
@@ -50,6 +51,7 @@ export function renderHome(m) {
         <li>${vault.enc ? `${icon('lock', 'ok')}<span>Encrypted with your PIN (AES-256-GCM)</span>` : `${icon('alert', 'warnc')}<span>Not encrypted — <button class="linkish" data-act="settings" data-tab="security">turn on app lock</button></span>`}</li>
         <li>${snaps.length ? `${icon('restore', 'ok')}<span>${snaps.length} daily snapshot${snaps.length > 1 ? 's' : ''} · latest ${fmtDate(snaps[snaps.length - 1].t)}</span>` : `${icon('alert', 'warnc')}<span>No snapshots yet</span>`}</li>
         <li>${folder.handle ? `${icon('folderSync', 'ok')}<span>Syncing to folder “${esc(folder.handle.name)}”</span>` : folder.pending ? `${icon('folderSync', 'warnc')}<span>Folder sync paused — <button class="linkish" data-act="reconnectFolder">reconnect “${esc(folder.pending.name)}”</button></span>` : `${icon('cloud', 'warnc')}<span>No off-device backup — <button class="linkish" data-act="settings" data-tab="backup">set one up</button></span>`}</li>
+        ${homeSyncLine()}
         <li>${icon('notes')}<span>${notes.length} note${notes.length === 1 ? '' : 's'} · ${L.filter(n => n.type === 'diary').length} diary entr${L.filter(n => n.type === 'diary').length === 1 ? 'y' : 'ies'}</span></li>
       </ul></div>
       ${empties.length ? `<div class="card"><h3>${icon('trash')} Tidy up</h3><p class="muted" style="margin:0">${empties.length} empty note${empties.length > 1 ? 's are' : ' is'} taking up space.</p><div class="row"><button class="btn sm" data-act="tidyEmpty">Move to Trash</button></div></div>` : ''}

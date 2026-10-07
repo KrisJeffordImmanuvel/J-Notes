@@ -101,7 +101,7 @@ function bindEditor(n) {
   if (nb) nb.addEventListener('change', async () => {
     if (nb.value === '__new') {
       const name = await promptModal({ title: 'New notebook', label: 'Notebook name', ok: 'Create' });
-      if (name && name.trim()) { const b = { id: uid(), name: name.trim() }; S.notebooks.push(b); n.notebookId = b.id; }
+      if (name && name.trim()) { const b = { id: uid(), name: name.trim(), updated: Date.now() }; S.notebooks.push(b); n.notebookId = b.id; }
       touch(n); renderEditor(); renderSidebar(); return;
     }
     n.notebookId = nb.value || null; touch(n); renderSidebar();

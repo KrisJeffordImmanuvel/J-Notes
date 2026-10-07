@@ -1,7 +1,7 @@
 /* Rendering entry points and navigation between views and notes. */
 import { $, ymd, debounce } from '../lib/util.js';
 import { prefs, THEMEKEY } from '../lib/storage.js';
-import { S, UI, cur, live, diaryFor, isMobile, isEmptyNote, isLockedPriv, newNote, noteTitle, snapshotHistory } from '../data/state.js';
+import { S, UI, cur, live, diaryFor, isMobile, isEmptyNote, isLockedPriv, newNote, noteTitle, snapshotHistory, forgetNotes, setDeleted } from '../data/state.js';
 import { scheduleSave } from '../data/persist.js';
 import { toast } from './toast.js';
 import { renderSidebar } from './sidebar.js';
@@ -40,7 +40,7 @@ export const refreshSide = debounce(() => {
 /* ---------- navigation ---------- */
 export function leaveNote(nextId) {
   const n = cur(); if (!n || n.id === nextId) return;
-  if (!n.deleted && isEmptyNote(n)) { S.notes = S.notes.filter(x => x !== n); scheduleSave(); }
+  if (!n.deleted && isEmptyNote(n)) { forgetNotes([n]); scheduleSave(); }
   else snapshotHistory(n, true);
 }
 export function closeNav() { $('#app').classList.remove('nav-open'); }
@@ -113,9 +113,9 @@ export function openByTitle(title) {
   if (n) openNote(n.id); else { createNote({ title: title.trim() }); toast(`Created “${title.trim()}”`); }
 }
 export function trashNote(n) {
-  n.deleted = Date.now(); scheduleSave();
+  setDeleted(n, true); scheduleSave();
   const list = filteredNotes();
   if (UI.current === n.id) { UI.current = UI.view === 'notes' && !isMobile() && list[0] ? list[0].id : null; UI.mobileEditor = false; }
   render();
-  toast('Moved to Trash', { label: 'Undo', fn: () => { n.deleted = null; scheduleSave(); UI.current = n.id; render(); } });
+  toast('Moved to Trash', { label: 'Undo', fn: () => { setDeleted(n, false); scheduleSave(); UI.current = n.id; render(); } });
 }

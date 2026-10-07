@@ -74,3 +74,17 @@
 .err-text{color:var(--danger);font-size:13px;min-height:20px}
 .linkish{border:0;background:none;color:var(--accent-ink);text-decoration:underline;padding:0;font-size:13px}
 .scrim{display:none}
+
+/* Google account & sync */
+.gbtn{display:inline-flex;align-items:center;gap:10px;height:40px;padding:0 16px 0 12px;border-radius:999px;border:1px solid #747775;background:#fff;color:#1f1f1f;font:500 14px/1 Roboto,var(--font-ui);cursor:pointer;white-space:nowrap}
+.gbtn:hover{background:#f6f8fc}
+.gbtn:disabled{opacity:.6;cursor:wait}
+.gbtn .g-logo{width:18px;height:18px;flex:none}
+[data-theme="dark"] .gbtn,[data-theme="night"] .gbtn,[data-theme="contrast"] .gbtn{background:#131314;border-color:#8e918f;color:#e3e3e3}
+[data-theme="dark"] .gbtn:hover,[data-theme="night"] .gbtn:hover{background:#1f2023}
+.ob-google{display:flex;flex-direction:column;align-items:flex-start;gap:8px;border-top:1px solid var(--line);padding-top:14px;margin-top:4px}
+.acct{display:flex;align-items:center;gap:12px;margin:4px 0 12px}
+.acct img,.acct .logo{width:44px;height:44px;border-radius:50%;flex:none;object-fit:cover}
+.icon-btn.warn{color:var(--warn)}
+.icon-btn.spin svg{animation:spin 1.2s linear infinite}
+@keyframes spin{to{transform:rotate(-360deg)}}

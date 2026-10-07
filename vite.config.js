@@ -21,7 +21,8 @@ export default defineConfig(({ mode }) => {
     },
     test: {
       include: ['tests/unit/**/*.test.js'],
-      environment: 'node'
+      environment: 'node',
+      env: { VITE_GOOGLE_CLIENT_ID: 'test-client.apps.googleusercontent.com' }
     }
   };
 });

@@ -96,7 +96,7 @@ export function showLock(mode = 'pin') {
     let rec; try { rec = JSON.parse(store.get(KEY)); } catch (err) { rec = null; }
     try {
       const { raw, key, data } = await openRecord(rec, secret, mode !== 'pin');
-      setVault({ enc: true, raw, key, meta: { pin: rec.pin, rec: rec.rec } });
+      setVault({ enc: true, raw, key, meta: { pin: rec.pin, rec: rec.rec }, lockAt: rec.lockAt || 0 });
       setS(migrate(data)); failCount = 0; L.classList.add('hidden'); L.innerHTML = '';
       start();
       if (mode !== 'pin') { toast('Recovered. Please set a new PIN.'); setTimeout(() => setupLock(), 300); }

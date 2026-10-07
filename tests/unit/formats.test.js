@@ -61,3 +61,52 @@ describe('mergeData', () => {
     expect(t.notes[0].title).toBe('old');
   });
 });
+
+import { syncMerge, isPristine, dedupeStarter } from '../../src/data/formats.js';
+import { defaultData, migrate } from '../../src/data/state.js';
+
+describe('syncMerge', () => {
+  const data = notes => migrate({ notebooks: [], notes, attachments: {}, tombstones: {} });
+
+  it('updates notes in place so an open editor keeps its object', () => {
+    const mine = newNote({ id: 'a', title: 'old', updated: 1 });
+    const local = data([mine]);
+    const changed = syncMerge(local, data([newNote({ id: 'a', title: 'new', updated: 2 })]));
+    expect(local.notes[0]).toBe(mine);
+    expect(mine.title).toBe('new');
+    expect([...changed]).toEqual(['a']);
+  });
+
+  it('applies tombstones only to notes not edited after the deletion', () => {
+    const local = data([newNote({ id: 'a', updated: 5 }), newNote({ id: 'b', updated: 50 })]);
+    syncMerge(local, { ...data([]), tombstones: { a: 10, b: 10 } });
+    expect(local.notes.map(n => n.id)).toEqual(['b']);
+  });
+
+  it('merges notebooks by newest rename and drops deleted ones', () => {
+    const local = migrate({ notes: [newNote({ id: 'n', notebookId: 'x' })], notebooks: [{ id: 'x', name: 'Old', updated: 1 }, { id: 'y', name: 'Y', updated: 1 }] });
+    syncMerge(local, migrate({ notes: [], notebooks: [{ id: 'y', name: 'Renamed', updated: 2 }], tombstones: { x: 3 } }));
+    expect(local.notebooks).toEqual([{ id: 'y', name: 'Renamed', updated: 2 }]);
+    expect(local.notes[0].notebookId).toBeNull();
+  });
+});
+
+describe('fresh installs', () => {
+  it('recognises untouched starter content', () => {
+    const d = defaultData();
+    expect(isPristine(d)).toBe(true);
+    d.notes[0].updated++;
+    expect(isPristine(d)).toBe(false);
+  });
+
+  it('folds duplicate starter notebooks from older installs', () => {
+    const d = migrate({
+      notebooks: [{ id: 'nb-personal', name: 'Personal' }, { id: 'zz-old', name: 'Personal' }],
+      notes: [newNote({ id: 'n1', notebookId: 'zz-old' })]
+    });
+    dedupeStarter(d);
+    expect(d.notebooks.map(b => b.id)).toEqual(['nb-personal']);
+    expect(d.notes[0].notebookId).toBe('nb-personal');
+    expect(d.tombstones['zz-old']).toBeTruthy();
+  });
+});
