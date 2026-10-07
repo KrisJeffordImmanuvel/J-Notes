@@ -12,7 +12,7 @@ import { render } from '../ui/nav.js';
 export function notebookByName(name) {
   if (!name) return null;
   let nb = S.notebooks.find(b => b.name.toLowerCase() === String(name).toLowerCase());
-  if (!nb) { nb = { id: uid(), name: String(name) }; S.notebooks.push(nb); }
+  if (!nb) { nb = { id: uid(), name: String(name), updated: Date.now() }; S.notebooks.push(nb); }
   return nb.id;
 }
 

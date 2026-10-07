@@ -7,6 +7,8 @@ import { modal, closeModal, clearModalOnClose } from './modal.js';
 import { toast } from './toast.js';
 import { render, applySettings } from './nav.js';
 import { setupLock } from './lock.js';
+import { googleAvailable } from '../lib/google.js';
+import { googleButton } from './account.js';
 
 export function onboarding(step = 1) {
   const st = S.settings;
@@ -16,8 +18,9 @@ export function onboarding(step = 1) {
     modal({
       title: 'Welcome to J Notes', onClose: fin,
       body: `<p style="font-size:16px;margin-top:0;font-family:var(--font-serif)">Private by design. Yours forever. Simple to use.</p>
-      <ul class="stat-list" style="margin:14px 0 18px"><li>${icon('shield', 'ok')}<span>Your notes stay on this device. No account, no tracking, no ads.</span></li><li>${icon('notes', 'ok')}<span>Everything is plain Markdown you can export any time.</span></li><li>${icon('book', 'ok')}<span>A calm diary with a calendar, moods and gentle prompts.</span></li></ul>
-      <div class="field"><label for="obName">What should we call you? <span class="muted">(optional)</span></label><input class="input" id="obName" value="${esc(st.name)}" autofocus></div>`,
+      <ul class="stat-list" style="margin:14px 0 18px"><li>${icon('shield', 'ok')}<span>Your notes stay on this device. No account needed, no tracking, no ads.</span></li><li>${icon('notes', 'ok')}<span>Everything is plain Markdown you can export any time.</span></li><li>${icon('book', 'ok')}<span>A calm diary with a calendar, moods and gentle prompts.</span></li></ul>
+      <div class="field"><label for="obName">What should we call you? <span class="muted">(optional)</span></label><input class="input" id="obName" value="${esc(st.name)}" autofocus></div>
+      ${googleAvailable() ? `<div class="ob-google"><span class="muted small">Already use J Notes on another device, or want your notes everywhere?</span>${googleButton('data-onboard="1"')}</div>` : ''}`,
       foot: `${dots}<button class="btn primary" id="obNext">Next</button>`
     });
     const next = () => { st.name = $('#obName').value.trim(); clearModalOnClose(); onboarding(2); };

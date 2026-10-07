@@ -6,7 +6,7 @@ export default [
       sourceType: 'module',
       globals: {
         window: 'readonly', document: 'readonly', navigator: 'readonly', location: 'readonly', history: 'readonly',
-        localStorage: 'readonly', indexedDB: 'readonly', crypto: 'readonly', caches: 'readonly', self: 'readonly',
+        localStorage: 'readonly', sessionStorage: 'readonly', fetch: 'readonly', Response: 'readonly', indexedDB: 'readonly', crypto: 'readonly', caches: 'readonly', self: 'readonly',
         console: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly', setInterval: 'readonly', requestAnimationFrame: 'readonly',
         matchMedia: 'readonly', getComputedStyle: 'readonly', innerWidth: 'readonly', innerHeight: 'readonly',
         URL: 'readonly', URLSearchParams: 'readonly', Blob: 'readonly', Image: 'readonly', Event: 'readonly', Notification: 'readonly',

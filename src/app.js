@@ -4,6 +4,8 @@ import { setAttachmentResolver } from './lib/markdown.js';
 import { S, UI, setS, setVault, defaultData, migrate, purgeTrash } from './data/state.js';
 import { persist, getSnaps } from './data/persist.js';
 import { restoreFolder } from './data/folder.js';
+import { initSync, isSignedIn, syncNow } from './data/sync.js';
+import { validToken } from './lib/google.js';
 import { toast } from './ui/toast.js';
 import { render, applySettings, openDiaryDate, createNote } from './ui/nav.js';
 import { ymd } from './lib/util.js';
@@ -19,6 +21,7 @@ export function start() {
   if (store.mode === 'memory') toast('This browser is blocking storage — notes will not be kept. Open J Notes in a normal (non-private) window.', null, 10000);
   if (!S.settings.onboarded) setTimeout(() => onboarding(1), 200);
   else openFromUrl();
+  if (isSignedIn() && validToken()) syncNow();
 }
 
 /** App shortcuts from the manifest: ?open=today | ?open=new */
@@ -35,6 +38,7 @@ export async function boot() {
   document.documentElement.dataset.theme = th === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : th;
   await initStore();
   await restoreFolder();
+  initSync();
   openData();
 }
 
@@ -52,6 +56,6 @@ function openData(recovered) {
     }
     setS(defaultData()); setVault({ enc: false }); start(); return;
   }
-  if (rec.enc) { setVault({ enc: true, meta: { pin: rec.pin, rec: rec.rec } }); showLock(); }
-  else { setS(migrate(rec.data)); setVault({ enc: false }); start(); }
+  if (rec.enc) { setVault({ enc: true, meta: { pin: rec.pin, rec: rec.rec }, lockAt: rec.lockAt || 0 }); showLock(); }
+  else { setS(migrate(rec.data)); setVault({ enc: false, lockAt: rec.lockAt || 0 }); start(); }
 }

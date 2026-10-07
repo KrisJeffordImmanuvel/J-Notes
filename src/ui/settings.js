@@ -11,10 +11,14 @@ import { importFiles } from '../data/importer.js';
 import { modal } from './modal.js';
 import { applySettings, renderMain } from './nav.js';
 import { canInstall } from './pwa.js';
+import { googleAvailable } from '../lib/google.js';
+import { accountSettingsHTML } from './account.js';
 
 let settingsTab = 'appearance';
 export const setSettingsTab = t => { settingsTab = t; };
-const TABS = [['appearance', 'palette', 'Appearance'], ['writing', 'pen', 'Writing'], ['diary', 'book', 'Diary'], ['security', 'shield', 'Security'], ['backup', 'download', 'Backup & export'], ['shortcuts', 'keyboard', 'Shortcuts'], ['about', 'info', 'About']];
+export const settingsTabOpen = t => !!$('#settingsBox') && settingsTab === t;
+const ALL_TABS = [['account', 'cloud', 'Account & sync'], ['appearance', 'palette', 'Appearance'], ['writing', 'pen', 'Writing'], ['diary', 'book', 'Diary'], ['security', 'shield', 'Security'], ['backup', 'download', 'Backup & export'], ['shortcuts', 'keyboard', 'Shortcuts'], ['about', 'info', 'About']];
+const tabs = () => ALL_TABS.filter(t => t[0] !== 'account' || googleAvailable());
 export function openSettings(tab) {
   if (tab) settingsTab = tab;
   modal({ title: 'Settings', wide: true, body: `<div class="settings" id="settingsBox"></div>` });
@@ -36,7 +40,11 @@ const sw = (k, title, desc) => `<label class="switch-row"><span class="txt"><b>$
 export function renderSettings() {
   const box = $('#settingsBox'); if (!box) return; const st = S.settings;
   let html = '';
+  if (!tabs().some(t => t[0] === settingsTab)) settingsTab = 'appearance';
   switch (settingsTab) {
+    case 'account':
+      html = accountSettingsHTML();
+      break;
     case 'appearance': {
       const themes = [['auto', 'Automatic', '#f5f4ef', '#14181b', '#2f6b5e'], ['light', 'Light', '#f5f4ef', '#ffffff', '#2f6b5e'], ['dark', 'Dark', '#14181b', '#1e2428', '#6db3a1'], ['night', 'Warm night', '#1b1611', '#251e17', '#d6a46e'], ['contrast', 'High contrast', '#000', '#000', '#ffd60a']];
       html = `<h3>Appearance</h3><div class="flabel">Theme</div><div class="theme-tiles">${themes.map(([k, l, a, b, c]) => `<button class="theme-tile${st.theme === k ? ' on' : ''}" data-act="setOpt" data-k="theme" data-v="${k}"><div class="sw" style="background:linear-gradient(135deg,${a} 50%,${b} 50%);border:1px solid var(--line)"><i style="width:40%;background:${c}"></i><i style="width:25%;background:${c};opacity:.5"></i></div><span>${l}</span></button>`).join('')}</div>
@@ -70,7 +78,7 @@ export function renderSettings() {
         <h4>Auto-lock</h4><select class="input" data-set="autolock" data-num="1" style="width:auto" aria-label="Auto-lock">${[[1, 'After 1 minute'], [5, 'After 5 minutes'], [15, 'After 15 minutes'], [30, 'After 30 minutes'], [0, 'Never']].map(([v, l]) => `<option value="${v}"${st.autolock === v ? ' selected' : ''}>${l}</option>`).join('')}</select>`
           : `<div class="note-box" style="display:flex;gap:10px;align-items:flex-start">${icon('alert', 'warnc')}<span><b style="color:var(--text)">App lock is off.</b> Notes are stored in this browser in readable form. Set a PIN to encrypt everything on this device.</span></div><button class="btn primary" data-act="lockSetup" style="margin-top:8px">${icon('lock')} Set up app lock</button>`) +
         `<h4>Private entries</h4><p class="muted small" style="margin-top:0">Any note or diary entry can have its own extra password. Open the entry, then choose ${icon('more')} → Make private.</p>
-        <h4>What J Notes never does</h4><ul class="muted small" style="margin-top:0;padding-left:18px"><li>No accounts, analytics, ads or trackers.</li><li>Your words never leave this device unless you export them. The only network traffic is the app downloading its own updates.</li><li>No lock-in: everything exports as plain Markdown.</li></ul>`;
+        <h4>What J Notes never does</h4><ul class="muted small" style="margin-top:0;padding-left:18px"><li>No account required, and no analytics, ads or trackers. Signing in with Google is optional and only used for sync.</li><li>Your words never leave this device unless you export them. The only network traffic is the app downloading its own updates.</li><li>No lock-in: everything exports as plain Markdown.</li></ul>`;
       break;
     case 'backup': {
       const snaps = getSnaps().slice().reverse();
@@ -105,7 +113,7 @@ export function renderSettings() {
       <li><b>Local-first</b> — works completely on your device.</li><li><b>You own your data</b> — standard Markdown, export anytime.</li><li><b>Private by default</b> — optional AES-256 encryption, no tracking.</li><li><b>Never lose a word</b> — version history, 30-day trash, daily snapshots.</li><li><b>Simple first</b> — power features only when you want them.</li><li><b>Calm and focused</b> — no feeds, no streaks, no noise.</li><li><b>Honest</b> — free, with nothing held hostage.</li></ol>
       <div class="note-box">Your notes live in this browser's storage for this site. Clearing site data or using a private window removes them — keep a backup or set up folder sync.</div>`;
   }
-  box.innerHTML = `<nav aria-label="Settings sections">${TABS.map(([k, i, l]) => `<button class="${k === settingsTab ? 'on' : ''}" data-act="settingsTab" data-tab="${k}">${icon(i)} ${l}</button>`).join('')}</nav><section>${html}</section>`;
+  box.innerHTML = `<nav aria-label="Settings sections">${tabs().map(([k, i, l]) => `<button class="${k === settingsTab ? 'on' : ''}" data-act="settingsTab" data-tab="${k}">${icon(i)} ${l}</button>`).join('')}</nav><section>${html}</section>`;
   const imp = $('#impFiles'); if (imp) imp.onchange = async () => { await importFiles([...imp.files]); renderSettingsIfOpen(); };
   const fmd = $('#fMd'); if (fmd) fmd.onchange = () => setFolderMd(fmd.checked);
   const si = $('#storageInfo');

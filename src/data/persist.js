@@ -8,20 +8,29 @@ import { folderWrite } from './folder.js';
 import { toast } from '../ui/toast.js';
 
 export let saveState = 'saved', lastSaved = Date.now();
+const savedHooks = [];
+/** Run `fn` after every successful save (used to trigger sync). */
+export const onSaved = fn => savedHooks.push(fn);
 export const flags = { noSave: false };   // set before a reload that replaces the data
 
 let saveTimer = null;
 export function scheduleSave(ms = 450) { setSaveState('saving'); clearTimeout(saveTimer); saveTimer = setTimeout(persist, ms); }
 
 /** Build the stored record (encrypted when the app lock is on). */
+const sealedBody = new Map();   // note id → body text last encrypted (avoids re-encrypting unchanged entries)
+export const markSealed = (id, body) => sealedBody.set(id, body);
 export async function buildRecord() {
-  // re-encrypt private notes that are open
+  // re-encrypt private notes that are open and were edited
   for (const n of S.notes) {
-    if (n.priv && privKeys[n.id]) { const p = await aesEnc(privKeys[n.id], enc(n.body)); n.priv.iv = p.iv; n.priv.ct = p.ct; }
+    if (n.priv && privKeys[n.id] && sealedBody.get(n.id) !== n.body) {
+      const p = await aesEnc(privKeys[n.id], enc(n.body)); n.priv.iv = p.iv; n.priv.ct = p.ct; sealedBody.set(n.id, n.body);
+    }
   }
   const json = JSON.stringify(S, stripPrivate);
-  if (vault.enc) return JSON.stringify({ v: 1, app: APP, enc: true, pin: vault.meta.pin, rec: vault.meta.rec, payload: await aesEnc(vault.key, enc(json)) });
-  return JSON.stringify({ v: 1, app: APP, enc: false, data: JSON.parse(json) });
+  // lockAt: when the app lock was last turned on/off or its PIN/recovery key changed (sync uses the newest)
+  const lockAt = vault.lockAt || 0;
+  if (vault.enc) return JSON.stringify({ v: 1, app: APP, enc: true, lockAt, pin: vault.meta.pin, rec: vault.meta.rec, payload: await aesEnc(vault.key, enc(json)) });
+  return JSON.stringify({ v: 1, app: APP, enc: false, lockAt, data: JSON.parse(json) });
 }
 
 let persisting = null;
@@ -36,6 +45,7 @@ export async function persist() {
       if (store.mode === 'memory') { setSaveState('error', 'Storage unavailable — export a backup'); return; }
       if (!await store.set(KEY, rec)) { setSaveState('error', 'Storage full — export a backup'); toast('Could not save: browser storage is full. Remove large images or export a backup.'); return; }
       lastSaved = Date.now(); setSaveState('saved');
+      savedHooks.forEach(fn => fn());
       await dailySnapshot(rec);
       folderWrite(rec);
     } catch (e) { console.error(e); setSaveState('error', 'Save failed'); }
