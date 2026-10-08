@@ -15,39 +15,9 @@ export function newNote(over = {}) {
   return Object.assign({ id: uid(), type: 'note', title: '', body: '', notebookId: null, tags: [], pinned: false, fav: false, created: t, updated: t, deleted: null, history: [] }, over);
 }
 
-// Fixed ids for the starter content, so two fresh installs don't duplicate it when they sync.
-export const WELCOME_ID = 'welcome', STARTER_NOTEBOOKS = [['nb-start', 'Getting started'], ['nb-personal', 'Personal'], ['nb-work', 'Work']];
-
+/** A fresh, empty notebook — your notes arrive from sync or you start writing. */
 export function defaultData() {
-  const gs = STARTER_NOTEBOOKS[0][0];
-  const welcome = newNote({
-    id: WELCOME_ID, title: 'Welcome to J Notes', notebookId: gs, pinned: true, tags: ['start'],
-    body: `J Notes is a calm, private place for your notes and your diary. Everything stays **on this device** — no account needed, no tracking and no ads. If you like, sign in with Google to sync your notes across your devices through your own Google Drive.
-
-## Try these first
-- [ ] Write today's diary entry (press **Alt + D**)
-- [ ] Create a note (press **Alt + N**)
-- [ ] Search everything (press **Ctrl + K**)
-- [ ] Turn on the app lock in **Settings → Security** to encrypt your notes
-- [ ] Download a backup in **Settings → Backup & export**
-
-## Writing
-Notes are saved as plain Markdown, so they stay readable forever. Use the toolbar or type:
-**bold**, *italic*, ==highlight==, \`code\`, "- [ ]" for a checklist and "#" for a heading.
-
-> Tip: switch to **Power mode** in Settings for [[note links]], backlinks and templates.
-
-## Never lose a word
-Every note keeps a version history, deleted notes wait 30 days in the Trash, and J Notes takes a daily snapshot automatically.
-
-## Take it with you
-Install J Notes from your browser's menu (“Install app” or “Add to Home Screen”) and it works fully offline.`
-  });
-  return {
-    v: 1, settings: { ...DEFAULT_SETTINGS },
-    notebooks: STARTER_NOTEBOOKS.map(([id, name]) => ({ id, name, updated: 0 })),
-    notes: [welcome], attachments: {}, tombstones: {}
-  };
+  return { v: 1, settings: { ...DEFAULT_SETTINGS }, notebooks: [], notes: [], attachments: {}, tombstones: {} };
 }
 
 export function migrate(d) {

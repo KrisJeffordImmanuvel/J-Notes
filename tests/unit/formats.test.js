@@ -92,10 +92,10 @@ describe('syncMerge', () => {
 });
 
 describe('fresh installs', () => {
-  it('recognises untouched starter content', () => {
+  it('recognises a fresh, empty install', () => {
     const d = defaultData();
     expect(isPristine(d)).toBe(true);
-    d.notes[0].updated++;
+    d.notes.push(newNote({ title: 'mine' }));
     expect(isPristine(d)).toBe(false);
   });
 

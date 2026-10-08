@@ -14,7 +14,7 @@ import { aesDec, normWords } from '../lib/crypto.js';
 import { store } from '../lib/storage.js';
 import {
   googleAvailable, validToken, forgetToken, requestToken, revokeAccess, getProfile, AuthError,
-  listSyncFiles, getFileMeta, downloadFile, uploadFile, deleteFile
+  listSyncFiles, getFileMeta, downloadFile, uploadFile, deleteFile, checkOwner, personalMode
 } from '../lib/google.js';
 import { S, vault, setVault, privKeys, migrate, stripPrivate } from './state.js';
 import { persist, buildRecord, onSaved } from './persist.js';
@@ -58,6 +58,8 @@ export function initSync() {
 export async function connectGoogle() {
   await requestToken({ prompt: 'select_account' });
   const profile = await getProfile();
+  await checkOwner(profile);
+  if (S && !S.settings.name && profile.givenName) S.settings.name = profile.givenName;
   if (vault.enc && !vault.lockAt) vault.lockAt = Date.now();   // data from before lock times were tracked
   const same = meta && meta.account && meta.account.sub === profile.sub;
   meta = same ? { ...meta, account: profile } : { account: profile, fileId: null, version: null, fingerprint: null, lockAt: 0, lastSync: 0, firstSync: true };
@@ -69,7 +71,31 @@ export async function connectGoogle() {
 /** Get a fresh token after the hourly expiry (one click; usually no account chooser). */
 export async function reconnectGoogle() {
   await requestToken({ hint: meta && meta.account && meta.account.email, prompt: '' });
+  const profile = await getProfile();
+  if (meta && meta.account && profile.sub !== meta.account.sub) {
+    revokeAccess();
+    throw new AuthError(`Please reconnect with ${meta.account.email}, the account this device syncs with.`);
+  }
   await syncNow();
+}
+
+/**
+ * First start on a new device: sign in and fetch the cloud copy as it is (no merge).
+ * Returns the stored record text, or null when this account has nothing in the cloud yet.
+ */
+export async function signInOnNewDevice() {
+  await requestToken({ prompt: 'select_account' });
+  const profile = await getProfile();
+  await checkOwner(profile);
+  const file = (await listSyncFiles())[0] || null;
+  const text = file ? await downloadFile(file.id) : null;
+  let lockAt = 0;
+  try { lockAt = text ? JSON.parse(text).lockAt || 0 : 0; } catch (e) { }
+  // version stays unknown, so the first sync pass re-reads the file and settles the fingerprint
+  meta = { account: profile, fileId: file ? file.id : null, version: null, fingerprint: null, lockAt, lastSync: 0, firstSync: !file };
+  await saveMeta();
+  setState('idle');
+  return { text, profile };
 }
 
 /** Stop syncing on this device. Notes stay here; the cloud copy stays in Drive. */
@@ -121,6 +147,7 @@ export function installSyncTriggers() {
 
 /* ---------- one pass ---------- */
 async function syncOnce() {
+  if (personalMode() && !vault.enc) return;   // personal mode: nothing leaves the device before the PIN is set
   if (!validToken()) { setState('paused'); return; }
   if (navigator.onLine === false) { setState('offline'); return; }
   setState('syncing');

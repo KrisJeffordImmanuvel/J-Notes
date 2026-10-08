@@ -11,7 +11,7 @@ import { importFiles } from '../data/importer.js';
 import { modal } from './modal.js';
 import { applySettings, renderMain } from './nav.js';
 import { canInstall } from './pwa.js';
-import { googleAvailable } from '../lib/google.js';
+import { googleAvailable, personalMode } from '../lib/google.js';
 import { accountSettingsHTML } from './account.js';
 
 let settingsTab = 'appearance';
@@ -74,7 +74,7 @@ export function renderSettings() {
     case 'security':
       html = `<h3>Security & privacy</h3>` + (!cryptoOK ? `<div class="note-box">Encryption needs a secure browser context. Open this file directly in Chrome, Edge, Firefox or Safari.</div>` :
         vault.enc ? `<div class="note-box" style="display:flex;gap:10px;align-items:flex-start">${icon('shield', 'ok')}<span><b style="color:var(--text)">App lock is on.</b> Your notes are encrypted with AES-256-GCM. The key is derived from your PIN with PBKDF2 (${KDF_ITER.toLocaleString()} rounds) and never stored.</span></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button class="btn sm" data-act="lockSetup">Change PIN</button><button class="btn sm" data-act="newRecovery">New recovery key</button><button class="btn sm" data-act="lock">${icon('lock')} Lock now</button><button class="btn sm danger" data-act="lockOff">Turn off app lock</button></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button class="btn sm" data-act="lockSetup">Change PIN</button><button class="btn sm" data-act="newRecovery">New recovery key</button><button class="btn sm" data-act="lock">${icon('lock')} Lock now</button>${personalMode() ? '' : '<button class="btn sm danger" data-act="lockOff">Turn off app lock</button>'}</div>
         <h4>Auto-lock</h4><select class="input" data-set="autolock" data-num="1" style="width:auto" aria-label="Auto-lock">${[[1, 'After 1 minute'], [5, 'After 5 minutes'], [15, 'After 15 minutes'], [30, 'After 30 minutes'], [0, 'Never']].map(([v, l]) => `<option value="${v}"${st.autolock === v ? ' selected' : ''}>${l}</option>`).join('')}</select>`
           : `<div class="note-box" style="display:flex;gap:10px;align-items:flex-start">${icon('alert', 'warnc')}<span><b style="color:var(--text)">App lock is off.</b> Notes are stored in this browser in readable form. Set a PIN to encrypt everything on this device.</span></div><button class="btn primary" data-act="lockSetup" style="margin-top:8px">${icon('lock')} Set up app lock</button>`) +
         `<h4>Private entries</h4><p class="muted small" style="margin-top:0">Any note or diary entry can have its own extra password. Open the entry, then choose ${icon('more')} → Make private.</p>
@@ -106,12 +106,11 @@ export function renderSettings() {
       break;
     }
     case 'about':
-      html = `<h3>About J Notes</h3><p><b>Private by design. Yours forever. Simple to use.</b></p>
-      <p class="muted">J Notes ${VERSION} works fully offline, stores notes as plain Markdown, and never sends your words anywhere.</p>
+      html = `<h3>About J Notes</h3><p><b>${st.name ? esc(st.name) + '’s' : 'Your'} private notes and diary.</b></p>
+      <p class="muted">J Notes ${VERSION}. Works offline, keeps every note as plain Markdown, and never sends your words anywhere except your own Google Drive when sync is on.</p>
       ${canInstall() ? `<p><button class="btn sm primary" data-act="installApp">${icon('download')} Install J Notes as an app</button></p>` : ''}
-      <h4>Seven promises</h4><ol class="muted small" style="padding-left:18px;line-height:1.8">
-      <li><b>Local-first</b> — works completely on your device.</li><li><b>You own your data</b> — standard Markdown, export anytime.</li><li><b>Private by default</b> — optional AES-256 encryption, no tracking.</li><li><b>Never lose a word</b> — version history, 30-day trash, daily snapshots.</li><li><b>Simple first</b> — power features only when you want them.</li><li><b>Calm and focused</b> — no feeds, no streaks, no noise.</li><li><b>Honest</b> — free, with nothing held hostage.</li></ol>
-      <div class="note-box">Your notes live in this browser's storage for this site. Clearing site data or using a private window removes them — keep a backup or set up folder sync.</div>`;
+      <ul class="muted small" style="padding-left:18px;line-height:1.8"><li>Version history on every note, 30 days in the Trash, and a daily snapshot.</li><li>Export everything as Markdown or a backup file from Backup &amp; export.</li></ul>
+      <div class="note-box">Each device keeps its own copy in this browser. Clearing site data removes it from that device — your synced copy in Google Drive and your backups are unaffected.</div>`;
   }
   box.innerHTML = `<nav aria-label="Settings sections">${tabs().map(([k, i, l]) => `<button class="${k === settingsTab ? 'on' : ''}" data-act="settingsTab" data-tab="${k}">${icon(i)} ${l}</button>`).join('')}</nav><section>${html}</section>`;
   const imp = $('#impFiles'); if (imp) imp.onchange = async () => { await importFiles([...imp.files]); renderSettingsIfOpen(); };
