@@ -3,26 +3,32 @@ import { $, esc } from '../lib/util.js';
 import { icon } from '../lib/icons.js';
 
 let modalOnClose = null;
+let sticky = false;   // a dialog that must be completed (no close button, Esc or outside click)
 export const isModalOpen = () => !!$('#modalRoot').innerHTML;
+export const isStickyModal = () => sticky && isModalOpen();
 /** Drop the pending close callback (used when one dialog hands over to the next). */
 export const clearModalOnClose = () => { modalOnClose = null; };
 
-export function modal({ title, body, foot, wide, onClose }) {
+export function modal({ title, body, foot, wide, onClose, required }) {
   closeModal(); closeMenu();
   const root = $('#modalRoot');
   root.innerHTML = `<div class="backdrop" id="backdrop"><div class="modal${wide ? ' wide' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title)}">
-    <div class="modal-head"><h2>${esc(title)}</h2><button class="icon-btn" data-act="closeModal" aria-label="Close">${icon('x')}</button></div>
+    <div class="modal-head"><h2>${esc(title)}</h2>${required ? '' : `<button class="icon-btn" data-act="closeModal" aria-label="Close">${icon('x')}</button>`}</div>
     <div class="modal-body">${body}</div>${foot ? `<div class="modal-foot">${foot}</div>` : ''}</div></div>`;
   modalOnClose = onClose || null;
-  $('#backdrop').addEventListener('mousedown', e => { if (e.target.id === 'backdrop') closeModal(); });
+  sticky = !!required;
+  $('#backdrop').addEventListener('mousedown', e => { if (e.target.id === 'backdrop') dismissModal(); });
   const f = root.querySelector('[autofocus]') || root.querySelector('.modal-body input, .modal-body button, .modal-foot button');
   if (f) setTimeout(() => f.focus(), 20);
   return root.querySelector('.modal');
 }
 export function closeModal() {
   const r = $('#modalRoot'); if (!r.innerHTML) return;
+  sticky = false;
   r.innerHTML = ''; const cb = modalOnClose; modalOnClose = null; if (cb) cb();
 }
+/** Close because the user asked to (Esc, ×, outside click) — ignored for required dialogs. */
+export function dismissModal() { if (!sticky) closeModal(); }
 export function promptModal({ title, label, value = '', type = 'text', ok = 'OK', help = '' }) {
   return new Promise(res => {
     let done = false;

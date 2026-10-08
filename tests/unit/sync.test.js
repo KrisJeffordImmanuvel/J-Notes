@@ -5,9 +5,12 @@ import { installFakeGoogle } from './fake-google.js';
 globalThis.document = { querySelectorAll: () => [], addEventListener: () => { } };
 globalThis.location = { protocol: 'https:' };
 
-/** A separate "device": its own module instances and its own browser database. */
-async function device() {
+const OWNER = 'dcad3b18c54f8330a460d6517d418d6efc5c6dfb777cbd8514a5106e59060537';   // sha256('kris@example.com')
+
+/** A separate "device": its own module instances and its own browser database. Personal mode only when asked. */
+async function device({ personal = false } = {}) {
   vi.resetModules();
+  vi.stubEnv('VITE_OWNER_EMAIL_HASH', personal ? OWNER : '');
   globalThis.indexedDB = new IDBFactory();
   const storage = await import('../../src/lib/storage.js');
   await storage.initStore();
@@ -46,15 +49,14 @@ describe('Google Drive sync', () => {
   it('a fresh second device takes the cloud copy, and edits flow both ways', async () => {
     const a = await device();
     a.add('Groceries', 'milk');
-    a.S.notes.find(n => n.id === 'welcome').body += '\nedited on A';
-    a.S.notes.find(n => n.id === 'welcome').updated = Date.now() + 5;
+    a.S.notebooks.push({ id: 'nb1', name: 'Home', updated: Date.now() });
     await a.sync.connectGoogle();
 
     const b = await device();
     await b.sync.connectGoogle();
     expect(b.note('Groceries').body).toBe('milk');
-    expect(b.S.notes.filter(n => n.title === 'Welcome to J Notes')).toHaveLength(1);
-    expect(b.S.notebooks).toHaveLength(3);
+    expect(b.S.notes).toHaveLength(1);
+    expect(b.S.notebooks.map(x => x.name)).toEqual(['Home']);
 
     b.edit('Groceries', 'milk, eggs');
     await b.sync.syncNow();
@@ -155,6 +157,43 @@ describe('Google Drive sync', () => {
     expect(a.sync.sync.state).toBe('paused');
     await a.sync.reconnectGoogle();
     expect(a.sync.sync.state).toBe('idle');
+  });
+
+  it('only the owner\'s Google account can sign in', async () => {
+    drive.profile.email = 'someone.else@example.com';
+    const a = await device({ personal: true });
+    await expect(a.sync.connectGoogle()).rejects.toThrow(/isn't the owner's Google account/);
+    expect(a.sync.isSignedIn()).toBe(false);
+    expect(drive.files.size).toBe(0);
+    await expect(a.sync.signInOnNewDevice()).rejects.toThrow(/owner/);
+  });
+
+  it('personal mode uploads nothing until a PIN is set, then only encrypted data', async () => {
+    const a = await device({ personal: true });
+    a.add('Private', 'not before the PIN');
+    await a.sync.connectGoogle();
+    expect(drive.files.size).toBe(0);
+    await a.vault.enableLock('1357');
+    await a.sync.syncNow();
+    const stored = [...drive.files.values()][0].content;
+    expect(stored).toContain('"enc":true');
+    expect(stored).not.toContain('not before the PIN');
+  });
+
+  it('a new device signs in and receives the cloud copy as it is', async () => {
+    const a = await device({ personal: true });
+    a.add('From the laptop', 'hello');
+    await a.sync.connectGoogle();
+    await a.vault.enableLock('1357');
+    await a.sync.syncNow();
+    const b = await device({ personal: true });
+    const { text, profile } = await b.sync.signInOnNewDevice();
+    expect(profile.email).toBe('kris@example.com');
+    const rec = JSON.parse(text);
+    expect(rec.enc).toBe(true);
+    const { data } = await b.vault.openRecord(rec, '1357');
+    expect(data.notes[0].title).toBe('From the laptop');
+    expect(b.sync.isSignedIn()).toBe(true);
   });
 
   it('signing out keeps local notes', async () => {

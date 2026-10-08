@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
     test: {
       include: ['tests/unit/**/*.test.js'],
       environment: 'node',
-      env: { VITE_GOOGLE_CLIENT_ID: 'test-client.apps.googleusercontent.com' }
+      env: { VITE_GOOGLE_CLIENT_ID: 'test-client.apps.googleusercontent.com', VITE_OWNER_EMAIL_HASH: 'dcad3b18c54f8330a460d6517d418d6efc5c6dfb777cbd8514a5106e59060537' /* kris@example.com */ }
     }
   };
 });

@@ -5,7 +5,7 @@ import { googleAvailable, loadGoogle } from '../lib/google.js';
 import { S, UI, cur, diaryFor } from '../data/state.js';
 import { sync, isSignedIn, connectGoogle, reconnectGoogle, signOutGoogle, deleteCloudCopy, unlockCloudCopy, syncNow, setSyncHooks } from '../data/sync.js';
 import { toast } from './toast.js';
-import { confirmModal, promptModal, closeModal } from './modal.js';
+import { confirmModal, promptModal } from './modal.js';
 import { renderSidebar } from './sidebar.js';
 import { renderList } from './notes.js';
 import { renderHome } from './home.js';
@@ -78,13 +78,7 @@ async function guarded(fn, okMsg) {
   renderSidebar(); renderSettingsIfOpen();
 }
 export const accountActions = {
-  googleConnect: d => guarded(async () => {
-    if (d && d.onboard) {   // pressed in the welcome dialog: keep the name and finish onboarding
-      const nm = $('#obName'); if (nm && S) S.settings.name = nm.value.trim();
-      closeModal();
-    }
-    await connectGoogle();
-  }, null).then(() => {
+  googleConnect: () => guarded(async () => { await connectGoogle(); }, null).then(() => {
     if (isSignedIn()) toast(sync.state === 'needs-pin' ? 'Signed in. Enter the PIN from your other device to open your synced notes.' : `Signed in as ${sync.account.email} — your notes will now sync.`);
   }),
   googleReconnect: () => guarded(reconnectGoogle),

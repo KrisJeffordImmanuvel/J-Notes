@@ -5,6 +5,8 @@
  * The Google script is only loaded when someone uses sign-in. */
 
 export const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+/** SHA-256 (hex) of the owner's lower-case email. When set, only that Google account may sign in. */
+const OWNER_HASH = (import.meta.env.VITE_OWNER_EMAIL_HASH || '').trim().toLowerCase();
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
 export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 const SCOPES = `${DRIVE_SCOPE} openid email profile`;
@@ -12,6 +14,8 @@ const TOKEN_KEY = 'jnotes:gtoken';
 
 /** Sign-in needs a client ID at build time and a real web origin (not a file opened from disk). */
 export const googleAvailable = () => !!CLIENT_ID && /^https?:$/.test(location.protocol);
+/** Personal mode: this copy of J Notes belongs to one Google account (sign-in on new devices, PIN always on). */
+export const personalMode = () => googleAvailable() && !!OWNER_HASH;
 
 export class AuthError extends Error { }
 
@@ -88,7 +92,19 @@ async function call(url, opts = {}) {
 
 export async function getProfile() {
   const p = await (await call('https://www.googleapis.com/oauth2/v3/userinfo')).json();
-  return { sub: p.sub, email: p.email || '', name: p.name || p.email || 'Google account', picture: p.picture || '' };
+  return { sub: p.sub, email: p.email || '', name: p.name || p.email || 'Google account', givenName: p.given_name || '', picture: p.picture || '' };
+}
+
+async function sha256hex(text) {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+/** Refuse (and disconnect) any Google account other than the owner's. */
+export async function checkOwner(profile) {
+  if (!OWNER_HASH) return;
+  if (await sha256hex(profile.email.trim().toLowerCase()) === OWNER_HASH) return;
+  revokeAccess();
+  throw new AuthError(`This J Notes is private. ${profile.email || 'That account'} isn't the owner's Google account.`);
 }
 
 /* ---------- Drive: one file in the hidden app folder ---------- */

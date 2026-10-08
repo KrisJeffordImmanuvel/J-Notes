@@ -7,7 +7,7 @@ import { scheduleSave, persist, saveState, getSnaps, snapshotNow, flags } from '
 import { disableLock, newRecovery } from '../data/vault.js';
 import { exportZip, exportBackup } from '../data/exporter.js';
 import { chooseFolder, mergeFromFolder, reconnectFolder, forgetFolder } from '../data/folder.js';
-import { closeModal, promptModal, confirmModal, openMenu, closeMenu, isModalOpen, isMenuOpen } from './modal.js';
+import { closeModal, dismissModal, promptModal, confirmModal, openMenu, closeMenu, isModalOpen, isMenuOpen, isStickyModal } from './modal.js';
 import { toast } from './toast.js';
 import { render, renderMain, applySettings, go, openNote, createNote, openDiaryDate, leaveNote, closeNav } from './nav.js';
 import { renderSidebar } from './sidebar.js';
@@ -25,10 +25,10 @@ import { openSettings, renderSettings, setSettingsTab } from './settings.js';
 import { installApp } from './pwa.js';
 import { accountActions } from './account.js';
 import { SYNCKEY } from '../data/sync.js';
-import { forgetToken } from '../lib/google.js';
+import { forgetToken, personalMode } from '../lib/google.js';
 
 const H = {
-  closeModal: () => closeModal(),
+  closeModal: () => dismissModal(),
   newNote: () => createNote(),
   search: () => { closeNav(); openSearch(); },
   home: () => go('home'),
@@ -44,7 +44,9 @@ const H = {
   setOpt: d => { S.settings[d.k] = d.v; applySettings(); scheduleSave(); renderSettings(); },
   lock: () => lockApp(),
   lockSetup: () => setupLock(),
-  lockOff: async () => { if (await confirmModal({ title: 'Turn off app lock?', text: 'Your notes will be stored without encryption on this device.', ok: 'Turn off', danger: true })) { await disableLock(); render(); toast('App lock turned off'); } },
+  lockOff: async () => {
+    if (personalMode()) return;   // the app lock always stays on in personal mode
+    if (await confirmModal({ title: 'Turn off app lock?', text: 'Your notes will be stored without encryption on this device.', ok: 'Turn off', danger: true })) { await disableLock(); render(); toast('App lock turned off'); } },
   newRecovery: async () => { if (await confirmModal({ title: 'Create a new recovery key?', text: 'Your old recovery key will stop working.', ok: 'Create new key' })) showRecovery(await newRecovery()); },
   addNotebook: async () => { const name = await promptModal({ title: 'New notebook', label: 'Notebook name', ok: 'Create' }); if (name && name.trim()) { const b = { id: uid(), name: name.trim(), updated: Date.now() }; S.notebooks.push(b); scheduleSave(); go('notes', { kind: 'notebook', id: b.id }); } },
   nbMenu: (d, el) => {
@@ -124,10 +126,10 @@ export function installGlobalHandlers() {
     if (!S) return;
     const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
     if (e.key === 'Escape') {
-      if (isMenuOpen()) closeMenu(); else if (isModalOpen()) closeModal(); else if (UI.focus) toggleFocus(); else closeNav();
+      if (isMenuOpen()) closeMenu(); else if (isModalOpen()) dismissModal(); else if (UI.focus) toggleFocus(); else closeNav();
       return;
     }
-    if (isModalOpen() && !(mod && k === 'k')) return;
+    if (isModalOpen() && (isStickyModal() || !(mod && k === 'k'))) return;
     if (mod && !e.altKey && k === 'k') { e.preventDefault(); if (isModalOpen()) closeModal(); openSearch(); }
     else if (mod && !e.altKey && k === 's') { e.preventDefault(); persist().then(() => toast('Saved')); }
     else if (mod && !e.altKey && k === 'e') { e.preventDefault(); togglePreview(); }
