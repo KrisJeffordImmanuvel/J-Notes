@@ -3,7 +3,7 @@ import { $, esc, fmtTime } from '../lib/util.js';
 import { icon } from '../lib/icons.js';
 import { cryptoOK, KDF_ITER } from '../lib/crypto.js';
 import { store, storageEstimate } from '../lib/storage.js';
-import { VERSION } from '../data/constants.js';
+import { VERSION, PIN_REQUIRED } from '../data/constants.js';
 import { S, vault } from '../data/state.js';
 import { scheduleSave, getSnaps } from '../data/persist.js';
 import { fsOK, folder, setFolderMd } from '../data/folder.js';
@@ -11,7 +11,7 @@ import { importFiles } from '../data/importer.js';
 import { modal } from './modal.js';
 import { applySettings, renderMain } from './nav.js';
 import { canInstall } from './pwa.js';
-import { googleAvailable, personalMode } from '../lib/google.js';
+import { googleAvailable } from '../lib/google.js';
 import { accountSettingsHTML } from './account.js';
 
 let settingsTab = 'appearance';
@@ -74,7 +74,7 @@ export function renderSettings() {
     case 'security':
       html = `<h3>Security & privacy</h3>` + (!cryptoOK ? `<div class="note-box">Encryption needs a secure browser context. Open this file directly in Chrome, Edge, Firefox or Safari.</div>` :
         vault.enc ? `<div class="note-box" style="display:flex;gap:10px;align-items:flex-start">${icon('shield', 'ok')}<span><b style="color:var(--text)">App lock is on.</b> Your notes are encrypted with AES-256-GCM. The key is derived from your PIN with PBKDF2 (${KDF_ITER.toLocaleString()} rounds) and never stored.</span></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button class="btn sm" data-act="lockSetup">Change PIN</button><button class="btn sm" data-act="newRecovery">New recovery key</button><button class="btn sm" data-act="lock">${icon('lock')} Lock now</button>${personalMode() ? '' : '<button class="btn sm danger" data-act="lockOff">Turn off app lock</button>'}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button class="btn sm" data-act="lockSetup">Change PIN</button><button class="btn sm" data-act="newRecovery">New recovery key</button><button class="btn sm" data-act="lock">${icon('lock')} Lock now</button>${PIN_REQUIRED ? '' : '<button class="btn sm danger" data-act="lockOff">Turn off app lock</button>'}</div>
         <h4>Auto-lock</h4><select class="input" data-set="autolock" data-num="1" style="width:auto" aria-label="Auto-lock">${[[1, 'After 1 minute'], [5, 'After 5 minutes'], [15, 'After 15 minutes'], [30, 'After 30 minutes'], [0, 'Never']].map(([v, l]) => `<option value="${v}"${st.autolock === v ? ' selected' : ''}>${l}</option>`).join('')}</select>`
           : `<div class="note-box" style="display:flex;gap:10px;align-items:flex-start">${icon('alert', 'warnc')}<span><b style="color:var(--text)">App lock is off.</b> Notes are stored in this browser in readable form. Set a PIN to encrypt everything on this device.</span></div><button class="btn primary" data-act="lockSetup" style="margin-top:8px">${icon('lock')} Set up app lock</button>`) +
         `<h4>Private entries</h4><p class="muted small" style="margin-top:0">Any note or diary entry can have its own extra password. Open the entry, then choose ${icon('more')} → Make private.</p>

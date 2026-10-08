@@ -1,7 +1,7 @@
 /* Click/keyboard action handlers (event delegation), global shortcuts and timers. */
 import { $, $$, uid, ymd, pad, esc, fmtTime } from '../lib/util.js';
 import { store, KEY, SNAP, THEMEKEY, prefs, FOLDERKEY } from '../lib/storage.js';
-import { PROMPTS } from '../data/constants.js';
+import { PROMPTS, PIN_REQUIRED } from '../data/constants.js';
 import { S, UI, vault, cur, live, diaryFor, isEmptyNote, forgetNotes, forgetNotebook, setDeleted } from '../data/state.js';
 import { scheduleSave, persist, saveState, getSnaps, snapshotNow, flags } from '../data/persist.js';
 import { disableLock, newRecovery } from '../data/vault.js';
@@ -25,7 +25,7 @@ import { openSettings, renderSettings, setSettingsTab } from './settings.js';
 import { installApp } from './pwa.js';
 import { accountActions } from './account.js';
 import { SYNCKEY } from '../data/sync.js';
-import { forgetToken, personalMode } from '../lib/google.js';
+import { forgetToken } from '../lib/google.js';
 
 const H = {
   closeModal: () => dismissModal(),
@@ -45,7 +45,7 @@ const H = {
   lock: () => lockApp(),
   lockSetup: () => setupLock(),
   lockOff: async () => {
-    if (personalMode()) return;   // the app lock always stays on in personal mode
+    if (PIN_REQUIRED) return;   // the app lock always stays on
     if (await confirmModal({ title: 'Turn off app lock?', text: 'Your notes will be stored without encryption on this device.', ok: 'Turn off', danger: true })) { await disableLock(); render(); toast('App lock turned off'); } },
   newRecovery: async () => { if (await confirmModal({ title: 'Create a new recovery key?', text: 'Your old recovery key will stop working.', ok: 'Create new key' })) showRecovery(await newRecovery()); },
   addNotebook: async () => { const name = await promptModal({ title: 'New notebook', label: 'Notebook name', ok: 'Create' }); if (name && name.trim()) { const b = { id: uid(), name: name.trim(), updated: Date.now() }; S.notebooks.push(b); scheduleSave(); go('notes', { kind: 'notebook', id: b.id }); } },

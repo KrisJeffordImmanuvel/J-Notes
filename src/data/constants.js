@@ -1,5 +1,7 @@
 /* App constants: moods, prompts, templates and default settings. */
 export const APP = 'J Notes', VERSION = '1.1';
+/** Notes always sit behind a PIN: it can't be skipped or turned off (with or without Google sign-in). */
+export const PIN_REQUIRED = true;
 
 export const MOODS = [null, { n: 'Rough', c: 'var(--mood1)' }, { n: 'Low', c: 'var(--mood2)' }, { n: 'Okay', c: 'var(--mood3)' }, { n: 'Good', c: 'var(--mood4)' }, { n: 'Great', c: 'var(--mood5)' }];
 export const ENERGY = ['Low', 'Medium', 'High'];
