@@ -4,7 +4,7 @@ A calm, private, local-first notes and diary app. Everything stays on your devic
 
 - **Notes:** notebooks, tags, favourites, pins, Markdown with a formatting toolbar, version history and a 30-day trash.
 - **Diary:** calendar, mood and energy, a monthly mood chart, "on this day", writing prompts, a gentle reminder and a printable diary book.
-- **Privacy:** optional app lock that encrypts everything with AES-256-GCM (key derived from your PIN with PBKDF2), a 24-word recovery key, auto-lock, and per-entry passwords.
+- **Privacy:** a required PIN that encrypts everything with AES-256-GCM (key derived from the PIN with PBKDF2). J Notes asks for it on first use and it can't be turned off. Also a 24-word recovery key, auto-lock, and per-entry passwords.
 - **Your data:** export as Markdown (.zip) or JSON, import from Obsidian, Joplin, Notion, Bear and Day One exports, daily snapshots, and sync to your own folder (Chromium on desktop).
 - **Works offline:** you can install it as an app on desktop or phone.
 - **Personal and synced:** only the owner's Google account can open it on a new device, and notes sync across devices through a hidden folder in your own Google Drive, encrypted with your PIN. No J Notes server is involved.
@@ -56,7 +56,7 @@ The code doesn't use a framework or ship any runtime dependencies. Views render 
 This J Notes is set up for **one person**. When the site is built with the owner's details, it runs in personal mode:
 
 - **A new device** opens on a sign-in screen. Only the owner's Google account is accepted; any other account is refused and disconnected. After signing in, your notes come down from your Google Drive and open with your PIN.
-- **Your PIN is always required.** If a device has notes without a PIN, J Notes asks you to set one before you can continue, and the app lock can't be turned off. Nothing is uploaded until the PIN is set, so the cloud copy is always encrypted.
+- **Your PIN is always required** (this applies with or without sign-in). Nothing is uploaded until the PIN is set, so the cloud copy is always encrypted.
 - **No sample content.** A new device starts empty and fills from your cloud copy.
 - **Search engines** are asked not to index the site (`noindex`).
 

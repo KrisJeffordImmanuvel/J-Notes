@@ -2,6 +2,7 @@
 import { prefs, initStore, store, KEY, THEMEKEY } from './lib/storage.js';
 import { setAttachmentResolver } from './lib/markdown.js';
 import { S, UI, vault, setS, setVault, defaultData, migrate, purgeTrash } from './data/state.js';
+import { PIN_REQUIRED } from './data/constants.js';
 import { persist, getSnaps } from './data/persist.js';
 import { restoreFolder } from './data/folder.js';
 import { initSync, isSignedIn, syncNow } from './data/sync.js';
@@ -20,7 +21,7 @@ export function start() {
   render(); persist();
   if (store.mode === 'memory') toast('This browser is blocking storage — notes will not be kept. Open J Notes in a normal (non-private) window.', null, 10000);
   openFromUrl();
-  if (personalMode() && !vault.enc) setTimeout(requirePin, 100);   // personal mode: notes always sit behind a PIN
+  if (PIN_REQUIRED && !vault.enc) setTimeout(requirePin, 100);   // notes always sit behind a PIN
   if (isSignedIn() && validToken()) syncNow();
 }
 

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createFakeDrive } from '../support/fake-drive.js';
-import { openFresh, routeGoogle, unlock, waitSaved, quickNote, PIN } from './helpers.js';
+import { openFresh, routeGoogle, unlock, waitSaved, quickNote, setPin, PIN } from './helpers.js';
 
 test('a new device asks for the owner\'s Google account, then a PIN that cannot be skipped', async ({ page }) => {
   await routeGoogle(page.context(), createFakeDrive());
@@ -110,11 +110,15 @@ test('works offline once loaded', async ({ page, context }) => {
   await expect(page.getByText('Written before going offline').first()).toBeVisible();
 });
 
-test('the single-file build works from disk without sign-in', async ({ page }) => {
+test('the single-file build works from disk without sign-in, but still requires a PIN', async ({ page }) => {
   const path = (await import('node:path')).resolve('dist-single/J_Notes.html');
   await page.goto('file://' + path);
-  await expect(page.locator('.home-head h1')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
+  await setPin(page);
+  await expect(page.locator('.home-head h1')).toBeVisible();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: /Security/ }).click();
+  await expect(page.getByRole('button', { name: 'Turn off app lock' })).toHaveCount(0);
   await expect(page.locator('link[rel=manifest]')).toHaveCount(0);
   await expect(page.locator('script[src]')).toHaveCount(0);
 });
