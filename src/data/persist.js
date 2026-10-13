@@ -3,34 +3,20 @@ import { $$, esc, enc, ymd } from '../lib/util.js';
 import { aesEnc } from '../lib/crypto.js';
 import { store, KEY, SNAP } from '../lib/storage.js';
 import { APP } from './constants.js';
-import { S, vault, privKeys, stripPrivate } from './state.js';
-import { folderWrite } from './folder.js';
+import { S, vault } from './state.js';
 import { toast } from '../ui/toast.js';
 
 export let saveState = 'saved', lastSaved = Date.now();
-const savedHooks = [];
-/** Run `fn` after every successful save (used to trigger sync). */
-export const onSaved = fn => savedHooks.push(fn);
 export const flags = { noSave: false };   // set before a reload that replaces the data
 
 let saveTimer = null;
 export function scheduleSave(ms = 450) { setSaveState('saving'); clearTimeout(saveTimer); saveTimer = setTimeout(persist, ms); }
 
-/** Build the stored record (encrypted when the app lock is on). */
-const sealedBody = new Map();   // note id → body text last encrypted (avoids re-encrypting unchanged entries)
-export const markSealed = (id, body) => sealedBody.set(id, body);
+/** Build the stored record (encrypted once the PIN is set). */
 export async function buildRecord() {
-  // re-encrypt private notes that are open and were edited
-  for (const n of S.notes) {
-    if (n.priv && privKeys[n.id] && sealedBody.get(n.id) !== n.body) {
-      const p = await aesEnc(privKeys[n.id], enc(n.body)); n.priv.iv = p.iv; n.priv.ct = p.ct; sealedBody.set(n.id, n.body);
-    }
-  }
-  const json = JSON.stringify(S, stripPrivate);
-  // lockAt: when the app lock was last turned on/off or its PIN/recovery key changed (sync uses the newest)
-  const lockAt = vault.lockAt || 0;
-  if (vault.enc) return JSON.stringify({ v: 1, app: APP, enc: true, lockAt, pin: vault.meta.pin, rec: vault.meta.rec, payload: await aesEnc(vault.key, enc(json)) });
-  return JSON.stringify({ v: 1, app: APP, enc: false, lockAt, data: JSON.parse(json) });
+  const json = JSON.stringify(S);
+  if (vault.enc) return JSON.stringify({ v: 1, app: APP, enc: true, pin: vault.meta.pin, rec: vault.meta.rec, payload: await aesEnc(vault.key, enc(json)) });
+  return JSON.stringify({ v: 1, app: APP, enc: false, data: JSON.parse(json) });
 }
 
 let persisting = null;
@@ -45,9 +31,7 @@ export async function persist() {
       if (store.mode === 'memory') { setSaveState('error', 'Storage unavailable — export a backup'); return; }
       if (!await store.set(KEY, rec)) { setSaveState('error', 'Storage full — export a backup'); toast('Could not save: browser storage is full. Remove large images or export a backup.'); return; }
       lastSaved = Date.now(); setSaveState('saved');
-      savedHooks.forEach(fn => fn());
       await dailySnapshot(rec);
-      folderWrite(rec);
     } catch (e) { console.error(e); setSaveState('error', 'Save failed'); }
   })();
   try { await persisting; } finally { persisting = null; }
@@ -61,13 +45,15 @@ export function setSaveState(s, msg) {
 
 /* ---------- snapshots (daily, keep 7) ---------- */
 export function getSnaps() { try { return JSON.parse(store.get(SNAP) || '[]'); } catch (e) { return []; } }
-export async function dailySnapshot(rec, force) {
+export async function dailySnapshot(rec, force, label) {
   const today = ymd(); let snaps = getSnaps();
   if (!force && snaps.length && snaps[snaps.length - 1].date === today) return;
-  if (force) snaps = snaps.filter(s => s.date !== today || s.manual);
-  snaps.push({ date: today, t: Date.now(), size: rec.length, rec, manual: !!force });
-  while (snaps.length > 7) snaps.shift();
-  while (snaps.length && !await store.set(SNAP, JSON.stringify(snaps))) snaps.shift();
+  if (force && !label) snaps = snaps.filter(s => s.date !== today || s.manual || s.label);
+  snaps.push({ date: today, t: Date.now(), size: rec.length, rec, manual: !!force, ...(label ? { label } : {}) });
+  // keep 7 everyday snapshots; labelled ones (e.g. "before the single-note update") are kept too
+  const drop = () => { const i = snaps.findIndex(s => !s.label); if (i < 0) return false; snaps.splice(i, 1); return true; };
+  while (snaps.filter(s => !s.label).length > 7 && drop());
+  while (snaps.length && !await store.set(SNAP, JSON.stringify(snaps))) if (!drop()) snaps.shift();
 }
 /** Save now and take a manual snapshot of the current data. */
 export async function snapshotNow() { await persist(); const rec = store.get(KEY); if (rec) await dailySnapshot(rec, true); }

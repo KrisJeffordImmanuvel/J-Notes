@@ -1,10 +1,7 @@
 /* Markdown formatting commands, list continuation and image insertion. */
-import { $, uid, fmtDate } from '../lib/util.js';
-import { PROMPTS, TEMPLATES } from '../data/constants.js';
+import { $, uid } from '../lib/util.js';
 import { S } from '../data/state.js';
-import { openMenu } from './modal.js';
 import { toast } from './toast.js';
-import { promptIdx, nextPromptIdx } from './editor.js';
 
 export function insertText(ta, text, s, e) {
   ta.focus();
@@ -27,7 +24,7 @@ function prefixLines(fn) {
 }
 function toggleListPrefix(re, make) { prefixLines((l, i) => re.test(l) ? l.replace(re, '') : make(i) + l.replace(/^(\s*)([-*+]\s+(\[[ xX]\]\s+)?|\d+[.)]\s+)/, '$1')); }
 export function fmt(f) {
-  const ta = $('#edText'); if (!ta || ta.classList.contains('hidden')) { if (f === 'image' || f === 'template' || f === 'prompt') { } else return; }
+  const ta = $('#edText'); if (!ta || ta.closest('.hidden')) return;
   switch (f) {
     case 'bold': return wrapSel('**', '**', 'bold text');
     case 'italic': return wrapSel('*', '*', 'italic text');
@@ -39,17 +36,9 @@ export function fmt(f) {
     case 'quote': return prefixLines(l => /^>\s?/.test(l) ? l.replace(/^>\s?/, '') : '> ' + l);
     case 'code': { const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd); return sel.includes('\n') ? wrapSel('```\n', '\n```', '') : wrapSel('`', '`', 'code'); }
     case 'link': return wrapSel('[', '](https://)', 'link text');
-    case 'wiki': return wrapSel('[[', ']]', 'Note title');
     case 'hr': return insertText(ta, '\n\n---\n\n');
     case 'image': return pickImage();
-    case 'prompt': return insertPrompt();
-    case 'template': return openMenu($('[data-f=template]'), Object.keys(TEMPLATES).map(k => ({ label: k, icon: 'template', fn: () => insertText($('#edText'), TEMPLATES[k].replace(/\{date\}/g, fmtDate(Date.now()))) })));
   }
-}
-export function insertPrompt() {
-  const ta = $('#edText'); const p = PROMPTS[promptIdx]; nextPromptIdx();
-  const pre = ta.value && !ta.value.endsWith('\n') ? '\n\n' : '';
-  insertText(ta, `${pre}> ${p}\n\n`, ta.value.length, ta.value.length);
 }
 export function editorKeys(e, ta) {
   const mod = e.ctrlKey || e.metaKey;
@@ -63,7 +52,14 @@ export function editorKeys(e, ta) {
     const v = ta.value, ls = v.lastIndexOf('\n', s - 1) + 1, line = v.slice(ls, s);
     const m = line.match(/^(\s*)([-*+]|(\d+)([.)]))\s+(\[[ xX]\]\s+)?/); if (!m) return;
     e.preventDefault();
-    if (line.trim() === m[0].trim()) { insertText(ta, '', ls, s); return; }
+    if (line.trim() === m[0].trim()) {   // Enter on an empty item ends the list: remove the marker, keep the empty line
+      ta.focus(); ta.setSelectionRange(ls, s);
+      let ok = false;
+      try { ok = document.execCommand('delete'); } catch (err) { ok = false; }
+      if (!ok) { ta.setRangeText('', ls, s, 'start'); ta.dispatchEvent(new Event('input')); }
+      ta.setSelectionRange(ls, ls);
+      return;
+    }
     insertText(ta, '\n' + m[1] + (m[3] ? (Number(m[3]) + 1) + m[4] : m[2]) + ' ' + (m[5] ? '[ ] ' : ''));
   }
 }

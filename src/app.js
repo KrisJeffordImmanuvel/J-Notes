@@ -1,57 +1,47 @@
-/* Boot sequence: open storage, unlock (if needed) and start the app. */
-import { prefs, initStore, store, KEY, THEMEKEY } from './lib/storage.js';
+/* Boot sequence: open storage, unlock, bring old data into the single-note format, and show the note. */
+import { prefs, initStore, store, KEY, THEMEKEY, OBSOLETE_KEYS } from './lib/storage.js';
 import { setAttachmentResolver } from './lib/markdown.js';
-import { S, UI, vault, setS, setVault, defaultData, migrate, purgeTrash } from './data/state.js';
+import { S, UI, vault, setS, setVault, defaultData, migrate, pruneAttachments } from './data/state.js';
 import { PIN_REQUIRED } from './data/constants.js';
-import { persist, getSnaps } from './data/persist.js';
-import { restoreFolder } from './data/folder.js';
-import { initSync, isSignedIn, syncNow } from './data/sync.js';
-import { validToken, personalMode } from './lib/google.js';
+import { persist, getSnaps, dailySnapshot } from './data/persist.js';
+import { needsCombine, combineNotes } from './data/combine.js';
 import { toast } from './ui/toast.js';
-import { render, applySettings, openDiaryDate, createNote } from './ui/nav.js';
-import { ymd } from './lib/util.js';
+import { render } from './ui/view.js';
 import { showLock, requirePin } from './ui/lock.js';
-import { showSignInGate } from './ui/gate.js';
 
 setAttachmentResolver(id => { const a = S && S.attachments[id]; return a ? a.data : null; });
 
-export function start() {
-  purgeTrash(); applySettings();
-  UI.view = 'home'; UI.current = null; UI.focus = false;
+export async function start() {
+  if (needsCombine(S)) await combineOldData();
+  pruneAttachments();
+  UI.preview = false; UI.focus = false;
   render(); persist();
-  if (store.mode === 'memory') toast('This browser is blocking storage — notes will not be kept. Open J Notes in a normal (non-private) window.', null, 10000);
-  openFromUrl();
-  if (PIN_REQUIRED && !vault.enc) setTimeout(requirePin, 100);   // notes always sit behind a PIN
-  if (isSignedIn() && validToken()) syncNow();
+  if (store.mode === 'memory') toast('This browser is blocking storage — your note will not be kept. Open J Notes in a normal (non-private) window.', null, 10000);
+  if (PIN_REQUIRED && !vault.enc) setTimeout(requirePin, 100);   // the note always sits behind a PIN
 }
 
-/** App shortcuts from the manifest: ?open=today | ?open=new */
-function openFromUrl() {
-  const p = new URLSearchParams(location.search), what = p.get('open');
-  if (!what) return;
-  history.replaceState(null, '', location.pathname);
-  if (what === 'today') openDiaryDate(ymd(), true);
-  else if (what === 'new') createNote();
+/** Version 1 kept many notes and a diary: keep a snapshot of it, then fold everything into the one note. */
+async function combineOldData() {
+  const before = store.get(KEY);
+  if (before) await dailySnapshot(before, true, 'Before the single-note update');
+  const { data, count } = combineNotes(S);
+  data.settings = S.settings;
+  setS(migrate(data));
+  await persist();
+  if (count > 1) toast(`Your ${count} notes and diary entries are now one note, each under its own heading. The old version is kept as a snapshot in Settings → Backup.`, null, 12000);
 }
 
 export async function boot() {
   const th = prefs.get(THEMEKEY) || 'auto';
   document.documentElement.dataset.theme = th === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : th;
   await initStore();
-  await restoreFolder();
-  initSync();
+  for (const k of OBSOLETE_KEYS) if (store.get(k) != null) store.del(k);
   openData();
-}
-
-/** Nothing stored on this device yet: personal mode asks for the owner's sign-in first. */
-function freshStart() {
-  if (personalMode()) { showSignInGate(); return; }
-  setS(defaultData()); setVault({ enc: false }); start();
 }
 
 function openData(recovered) {
   const raw = store.get(KEY);
-  if (!raw) { freshStart(); return; }
+  if (!raw) { setS(defaultData()); setVault({ enc: false }); start(); return; }
   let rec = null; try { rec = JSON.parse(raw); } catch (e) { }
   if (!rec || (rec.enc ? !rec.payload : !rec.data)) {
     const snaps = getSnaps();
@@ -61,8 +51,8 @@ function openData(recovered) {
       store.set(KEY, snaps[snaps.length - 1].rec).then(() => { toast('Your data was damaged — restored the latest snapshot.', null, 8000); openData(true); });
       return;
     }
-    freshStart(); return;
+    setS(defaultData()); setVault({ enc: false }); start(); return;
   }
-  if (rec.enc) { setVault({ enc: true, meta: { pin: rec.pin, rec: rec.rec }, lockAt: rec.lockAt || 0 }); showLock(); }
-  else { setS(migrate(rec.data)); setVault({ enc: false, lockAt: rec.lockAt || 0 }); start(); }
+  if (rec.enc) { setVault({ enc: true, meta: { pin: rec.pin, rec: rec.rec } }); showLock(); }
+  else { setS(migrate(rec.data)); setVault({ enc: false }); start(); }
 }

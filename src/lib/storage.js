@@ -10,7 +10,9 @@
  * Data written by older versions to localStorage is moved into IndexedDB on first run.
  */
 
-export const KEY = 'jnotes:v1', SNAP = 'jnotes:snapshots', THEMEKEY = 'jnotes:theme', FOLDERKEY = 'jnotes:folder';
+export const KEY = 'jnotes:v1', SNAP = 'jnotes:snapshots', THEMEKEY = 'jnotes:theme';
+/** Keys left by older versions (folder sync, Google sync) — removed at start-up. */
+export const OBSOLETE_KEYS = ['jnotes:folder', 'jnotes:sync'];
 const MIGRATE = [KEY, SNAP];
 const DB_NAME = 'jnotes', OS = 'kv';
 

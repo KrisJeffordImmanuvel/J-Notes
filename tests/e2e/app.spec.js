@@ -1,87 +1,41 @@
 import { test, expect } from '@playwright/test';
-import { createFakeDrive } from '../support/fake-drive.js';
-import { openFresh, routeGoogle, unlock, waitSaved, quickNote, setPin, PIN } from './helpers.js';
+import { readFileSync } from 'node:fs';
+import { openFresh, setPin, unlock, waitSaved, storedRecord, PIN } from './helpers.js';
 
-test('a new device asks for the owner\'s Google account, then a PIN that cannot be skipped', async ({ page }) => {
-  await routeGoogle(page.context(), createFakeDrive());
+test('first start asks for a PIN that cannot be skipped, then opens the note', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByText('Sign in with your Google account to open your notes on this device.')).toBeVisible();
-  await expect(page.locator('#main')).toBeEmpty();
-  await page.getByRole('button', { name: 'Continue with Google' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Protect your notes' });
+  const dialog = page.getByRole('dialog', { name: 'Protect your note' });
   await expect(dialog).toBeVisible();
   await page.keyboard.press('Escape');
   await page.mouse.click(5, 5);
-  await expect(dialog).toBeVisible();                                   // still there
+  await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Close' })).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
+  await setPin(page);
+  await expect(page.locator('#edText')).toBeVisible();
+  await expect(page.locator('.note-item, .sidebar, [data-act=newNote]')).toHaveCount(0);   // one note only
 });
 
-test('anyone else\'s Google account is turned away', async ({ page }) => {
-  const drive = createFakeDrive({ email: 'someone.else@example.com' });
-  await routeGoogle(page.context(), drive);
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Continue with Google' }).click();
-  await expect(page.locator('#gateErr')).toContainText("isn't the owner's Google account");
-  await expect(page.locator('.home-head h1')).toHaveCount(0);
-  expect(drive.files.size).toBe(0);
-});
-
-test('creates a note that survives a reload', async ({ page }) => {
+test('the note survives a reload and lists continue on Enter', async ({ page }) => {
   await openFresh(page);
-  await page.keyboard.press('Alt+n');
-  await page.locator('#edTitle').fill('Shopping list');
   await page.locator('#edText').click();
-  await page.keyboard.type('- milk\nbread');
-  await expect(page.locator('#edText')).toHaveValue('- milk\n- bread');   // list continues on Enter
+  await page.keyboard.type('- milk\neggs\n\nafter the list');
+  await expect(page.locator('#edText')).toHaveValue('- milk\n- eggs\nafter the list');
   await waitSaved(page);
-
   await page.reload();
   await unlock(page);
-  await page.getByRole('button', { name: /All notes/ }).click();
-  await page.locator('.note-item', { hasText: 'Shopping list' }).click();
-  await expect(page.locator('#edText')).toHaveValue('- milk\n- bread');
+  await expect(page.locator('#edText')).toHaveValue('- milk\n- eggs\nafter the list');
 });
 
-test('writes a diary entry with a mood and finds it in search', async ({ page }) => {
+test('the note is stored encrypted and opens only with the right PIN', async ({ page }) => {
   await openFresh(page);
-  await page.getByRole('button', { name: "Today's entry", exact: true }).click();
-  await page.locator('#edText').fill('Walked by the sea at sunset.');
-  await page.locator('#moodRow').getByRole('button', { name: 'Great' }).click();
+  await page.locator('#edText').fill('the treasure is under the oak');
   await waitSaved(page);
-  await expect(page.locator('.cal-day.sel .dot')).toHaveAttribute('style', /mood5/);
-
-  await page.keyboard.press('Control+k');
-  await page.locator('#sq').fill('sunset');
-  await expect(page.locator('#sRes .sr')).toHaveCount(1);
-  await expect(page.locator('#sRes mark')).toHaveText('sunset');
-});
-
-test('moves notes to trash and restores them', async ({ page }) => {
-  await openFresh(page);
-  await quickNote(page, 'Old idea\nmaybe later');
-  await page.getByRole('button', { name: /All notes/ }).click();
-  await page.locator('.note-item', { hasText: 'Old idea' }).click();
-  await page.getByRole('button', { name: 'More options' }).click();
-  await page.getByRole('menuitem', { name: 'Move to Trash' }).click();
-  await page.getByRole('button', { name: /^Trash/ }).click();
-  await page.locator('.note-item', { hasText: 'Old idea' }).click();
-  await page.getByRole('button', { name: 'Restore' }).click();
-  await expect(page.locator('#edTitle')).toHaveValue('Old idea');
-});
-
-test('notes are always encrypted and open only with the right PIN', async ({ page }) => {
-  await openFresh(page);
-  await quickNote(page, 'Secret plans\nthe treasure is under the oak');
-  await waitSaved(page);
-
-  const stored = await page.evaluate(() => new Promise(res => {
-    const r = indexedDB.open('jnotes'); r.onsuccess = () => { const q = r.result.transaction('kv').objectStore('kv').get('jnotes:v1'); q.onsuccess = () => res(q.result); };
-  }));
+  const stored = await storedRecord(page);
   expect(stored).toContain('"enc":true');
   expect(stored).not.toContain('treasure');
 
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('button', { name: /Security/ }).click();
   await expect(page.getByRole('button', { name: 'Turn off app lock' })).toHaveCount(0);
   await page.keyboard.press('Escape');
@@ -92,59 +46,74 @@ test('notes are always encrypted and open only with the right PIN', async ({ pag
   await page.locator('#unlockBtn').click();
   await expect(page.locator('#lockErr')).toHaveText('That PIN is not right.');
   await unlock(page, PIN);
-  await expect(page.getByText('Secret plans').first()).toBeVisible();
+  await expect(page.locator('#edText')).toHaveValue('the treasure is under the oak');
+});
 
-  await page.reload();
-  await unlock(page);
-  await expect(page.getByText('Secret plans').first()).toBeVisible();
+test('find in note highlights matches and steps through them', async ({ page }) => {
+  await openFresh(page);
+  await page.locator('#edText').fill('Call mum about the trip.\nThe trip is in May.\nBook the TRIP hotel.');
+  await page.keyboard.press('Control+f');
+  await page.keyboard.type('trip');
+  await expect(page.locator('#findCount')).toHaveText(/of 3$/);
+  await expect(page.locator('#edBackdrop mark')).toHaveCount(3);
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#findCount')).toHaveText(/of 3$/);
+  await page.locator('#findIn').fill('nothing here');
+  await expect(page.locator('#findCount')).toHaveText('No matches');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#findBar')).toBeHidden();
+});
+
+test('read mode renders Markdown and ticks checklist items', async ({ page }) => {
+  await openFresh(page);
+  await page.locator('#edText').fill('# Today\n\n- [ ] water plants\n- [ ] post letter');
+  await page.keyboard.press('Control+e');
+  await expect(page.locator('#edPreview h1')).toHaveText('Today');
+  await page.locator('#edPreview input[type=checkbox]').first().check();
+  await page.keyboard.press('Control+e');
+  await expect(page.locator('#edText')).toHaveValue('# Today\n\n- [x] water plants\n- [ ] post letter');
+});
+
+test('version history restores an earlier version', async ({ page }) => {
+  await openFresh(page);
+  await page.locator('#edText').fill('first draft');
+  await page.getByRole('button', { name: 'Version history' }).click();     // keeps "first draft" as a version
+  await page.keyboard.press('Escape');
+  await page.locator('#edText').fill('second draft');
+  await page.getByRole('button', { name: 'Version history' }).click();
+  await page.locator('#hList button').nth(1).click();
+  await expect(page.locator('#hPrev')).toContainText('first draft');
+  await page.getByRole('button', { name: 'Restore this version' }).click();
+  await expect(page.locator('#edText')).toHaveValue('first draft');
+});
+
+test('downloads the note as Markdown', async ({ page }) => {
+  await openFresh(page);
+  await page.locator('#edText').fill('# Plans\n\nSee the sea.');
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: /Backup/ }).click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Note as Markdown/ }).click()]);
+  expect(download.suggestedFilename()).toMatch(/^J Notes .*\.md$/);
+  expect(readFileSync(await download.path(), 'utf8')).toBe('# Plans\n\nSee the sea.\n');
 });
 
 test('works offline once loaded', async ({ page, context }) => {
   await openFresh(page);
   await page.evaluate(() => navigator.serviceWorker.ready);
-  await quickNote(page, 'Written before going offline');
+  await page.locator('#edText').fill('Written before going offline');
   await waitSaved(page);
   await context.setOffline(true);
   await page.reload();
   await unlock(page);
-  await expect(page.getByText('Written before going offline').first()).toBeVisible();
+  await expect(page.locator('#edText')).toHaveValue('Written before going offline');
 });
 
-test('the single-file build works from disk without sign-in, but still requires a PIN', async ({ page }) => {
+test('the single-file build works from disk and still requires a PIN', async ({ page }) => {
   const path = (await import('node:path')).resolve('dist-single/J_Notes.html');
   await page.goto('file://' + path);
-  await expect(page.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
   await setPin(page);
-  await expect(page.locator('.home-head h1')).toBeVisible();
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByRole('button', { name: /Security/ }).click();
-  await expect(page.getByRole('button', { name: 'Turn off app lock' })).toHaveCount(0);
+  await expect(page.locator('#edText')).toBeVisible();
   await expect(page.locator('link[rel=manifest]')).toHaveCount(0);
   await expect(page.locator('script[src]')).toHaveCount(0);
-});
-
-test('existing notes without a PIN must be protected first, then sync is offered', async ({ page }) => {
-  await routeGoogle(page.context(), createFakeDrive());
-  // notes saved by an earlier version, unencrypted, in this browser
-  await page.addInitScript(() => {
-    if (localStorage.getItem('seeded')) return;
-    localStorage.setItem('seeded', '1');
-    const t = Date.now();
-    localStorage.setItem('jnotes:v1', JSON.stringify({ v: 1, app: 'J Notes', enc: false, data: {
-      v: 1, settings: { onboarded: true }, notebooks: [], attachments: {},
-      notes: [{ id: 'n1', type: 'note', title: 'Laptop note', body: 'already here', notebookId: null, tags: [], pinned: false, fav: false, created: t, updated: t, deleted: null, history: [] }]
-    } }));
-  });
-  await page.goto('/');
-  await expect(page.getByRole('dialog', { name: 'Protect your notes' })).toBeVisible();
-  await page.locator('#lk1').fill(PIN);
-  await page.locator('#lk2').fill(PIN);
-  await page.locator('#lkOk').click();
-  await page.locator('.words div').nth(23).waitFor();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('heading', { name: 'Account & sync' })).toBeVisible();
-  await page.getByRole('button', { name: 'Continue with Google' }).click();
-  await expect(page.getByText('Signed in as kris@example.com')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.getByText('Laptop note').first()).toBeVisible();
 });
