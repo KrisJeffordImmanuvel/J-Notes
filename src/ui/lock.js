@@ -8,38 +8,29 @@ import { persist } from '../data/persist.js';
 import { enableLock, changePin, openRecord, wipeKeys } from '../data/vault.js';
 import { modal, closeModal, closeMenu, clearModalOnClose } from './modal.js';
 import { toast } from './toast.js';
-import { render } from './nav.js';
+import { render } from './view.js';
 import { printHTML } from './print.js';
-import { renderSettingsIfOpen, openSettings } from './settings.js';
-import { googleAvailable } from '../lib/google.js';
-import { isSignedIn } from '../data/sync.js';
+import { renderSettingsIfOpen } from './settings.js';
 import { start } from '../app.js';
 
 export async function lockApp() {
   if (!vault.enc) return;
   closeModal(); closeMenu();
   await persist();
-  setS(null); wipeKeys(); UI.focus = false; $('#app').classList.remove('focus', 'nav-open');
-  $('#main').innerHTML = ''; $('#sidebar').innerHTML = '';
+  setS(null); wipeKeys(); UI.focus = false; UI.preview = false; $('#app').classList.remove('focus');
+  $('#main').innerHTML = '';
   showLock();
 }
 
-/** Personal mode: notes must be protected by a PIN before the app can be used. */
-export function requirePin() {
-  setupLock(() => {
-    if (googleAvailable() && !isSignedIn()) {
-      toast('Next: sign in with Google to sync your notes to your other devices.', null, 7000);
-      openSettings('account');
-    }
-  }, { required: true });
-}
+/** The note must be protected by a PIN before the app can be used. */
+export function requirePin() { setupLock(null, { required: true }); }
 
 export function setupLock(after, { required = false } = {}) {
   if (!cryptoOK) { toast('Encryption is not available in this browser.'); return; }
   modal({
     required,
-    title: vault.enc ? 'Change PIN' : required ? 'Protect your notes' : 'Set up app lock',
-    body: `<p class="muted" style="margin-top:0">${vault.enc ? 'Choose a new PIN. Your recovery key stays the same.' : required ? 'Choose a PIN for J Notes. It encrypts your notes on this device, and you\'ll enter it to open them.' : 'Your PIN encrypts every note on this device with AES-256. Without it, nobody can read your notes — not even with access to this browser.'}</p>
+    title: vault.enc ? 'Change PIN' : required ? 'Protect your note' : 'Set up app lock',
+    body: `<p class="muted" style="margin-top:0">${vault.enc ? 'Choose a new PIN. Your recovery key stays the same.' : required ? 'Choose a PIN for J Notes. It encrypts your note on this device, and you\'ll enter it to open the app.' : 'Your PIN encrypts every note on this device with AES-256. Without it, nobody can read your notes — not even with access to this browser.'}</p>
     <form id="lkForm"><div class="field"><label for="lk1">${vault.enc ? 'New PIN or passcode' : 'PIN or passcode'}</label><input class="input" type="password" id="lk1" inputmode="text" autocomplete="new-password" autofocus><div class="help">At least 4 characters. Longer is stronger.</div></div>
     <div class="field"><label for="lk2">Repeat it</label><input class="input" type="password" id="lk2" autocomplete="new-password"></div><div class="err-text" id="lkErr"></div></form>`,
     foot: `${required ? '' : '<button class="btn" data-act="closeModal">Cancel</button>'}<button class="btn primary" id="lkOk">${vault.enc ? 'Change PIN' : 'Continue'}</button>`
@@ -62,7 +53,7 @@ export function showRecovery(words, after) {
       <div class="words">${words.map((w, i) => `<div><b>${i + 1}</b>${w}</div>`).join('')}</div>
       <div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" id="rkPrint">${icon('print')} Print recovery sheet</button><button class="btn sm" id="rkCopy">${icon('copy')} Copy</button></div>`,
     foot: `<button class="btn primary" id="rkNext">I've saved it — check me</button>`,
-    onClose: () => { if (!verified) { toast('App lock is on. You can create a new recovery key in Settings → Security.'); if (after) after(); } }
+    onClose: () => { if (!verified) { toast('Your PIN is set. You can make a new recovery key any time in Settings → Security.'); if (after) after(); } }
   });
   let verified = false;
   $('#rkPrint').onclick = () => printHTML('J Notes recovery sheet', `<h1>J Notes recovery sheet</h1><p>Created ${esc(fmtTime(Date.now()))}. Keep this page private and safe. Anyone with these words can unlock your notes on this device.</p><ol style="columns:3;font:14pt ui-monospace,monospace;line-height:2">${words.map(w => `<li>${w}</li>`).join('')}</ol>`);
@@ -71,7 +62,7 @@ export function showRecovery(words, after) {
     clearModalOnClose();
     const a = Math.floor(Math.random() * 12), b = 12 + Math.floor(Math.random() * 12);
     const m = modal({
-      title: 'Check your recovery key', onClose: () => { if (!verified) { toast('App lock is on. Remember to keep your recovery key safe.'); if (after) after(); } },
+      title: 'Check your recovery key', onClose: () => { if (!verified) { toast('Your PIN is set. Keep your recovery key somewhere safe.'); if (after) after(); } },
       body: `<p class="muted" style="margin-top:0">Type two words from your key to make sure you saved it correctly.</p>
       <div class="field"><label for="rv1">Word #${a + 1}</label><input class="input" id="rv1" autocomplete="off" autofocus></div>
       <div class="field"><label for="rv2">Word #${b + 1}</label><input class="input" id="rv2" autocomplete="off"></div><div class="err-text" id="rvErr"></div>`,
@@ -80,7 +71,7 @@ export function showRecovery(words, after) {
     $('#rvBack').onclick = () => { clearModalOnClose(); showRecovery(words, after); };
     const fin = () => {
       if ($('#rv1').value.trim().toLowerCase() !== words[a] || $('#rv2').value.trim().toLowerCase() !== words[b]) { $('#rvErr').textContent = 'Those words don’t match. Check your copy and try again.'; return; }
-      verified = true; closeModal(); toast('App lock is on — your notes are encrypted'); if (after) after(); else renderSettingsIfOpen();
+      verified = true; closeModal(); toast('Your PIN is set — your note is encrypted'); if (after) after(); else renderSettingsIfOpen();
     };
     $('#rvOk').onclick = fin; m.addEventListener('keydown', e => { if (e.key === 'Enter') fin(); });
   };
@@ -91,7 +82,7 @@ let failCount = 0, lockUntil = 0;
 export function showLock(mode = 'pin') {
   const L = $('#lockScreen'); L.classList.remove('hidden');
   L.innerHTML = `<div class="lock-card"><div class="logo">J</div><h1>J Notes is locked</h1>
-    ${mode === 'pin' ? `<p class="muted">Enter your PIN to unlock your notes.</p>
+    ${mode === 'pin' ? `<p class="muted">Enter your PIN to open your note.</p>
       <form id="lockForm"><input class="input" id="pinIn" type="password" autocomplete="current-password" aria-label="PIN"><div class="err-text" id="lockErr"></div><button class="btn primary block" type="submit" id="unlockBtn">Unlock</button></form>
       <p><button class="linkish" id="useRec">Forgot your PIN? Use your recovery key</button></p>`
       : `<p class="muted">Type your 24-word recovery key, separated by spaces.</p>
@@ -109,7 +100,7 @@ export function showLock(mode = 'pin') {
     let rec; try { rec = JSON.parse(store.get(KEY)); } catch (err) { rec = null; }
     try {
       const { raw, key, data } = await openRecord(rec, secret, mode !== 'pin');
-      setVault({ enc: true, raw, key, meta: { pin: rec.pin, rec: rec.rec }, lockAt: rec.lockAt || 0 });
+      setVault({ enc: true, raw, key, meta: { pin: rec.pin, rec: rec.rec } });
       setS(migrate(data)); failCount = 0; L.classList.add('hidden'); L.innerHTML = '';
       start();
       if (mode !== 'pin') { toast('Recovered. Please set a new PIN.'); setTimeout(() => setupLock(), 300); }

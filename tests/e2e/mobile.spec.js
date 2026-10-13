@@ -1,14 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { openFresh, waitSaved, quickNote } from './helpers.js';
+import { openFresh, waitSaved } from './helpers.js';
 
-test('mobile: navigate with the drawer and edit a note', async ({ page }) => {
+test('mobile: write in the note and find text with the toolbar button', async ({ page }) => {
   await openFresh(page);
-  await quickNote(page, 'Phone note\nwritten on the go');
-  await page.getByRole('button', { name: 'Open menu' }).first().click();
-  await page.getByRole('button', { name: /All notes/ }).click();
-  await page.locator('.note-item', { hasText: 'Phone note' }).click();
-  await page.locator('#edTitle').fill('Phone note, edited');
+  await page.locator('#edText').fill('Packing list\n- passport\n- charger');
   await waitSaved(page);
-  await page.getByRole('button', { name: 'Back' }).click();
-  await expect(page.locator('.note-item', { hasText: 'Phone note, edited' })).toBeVisible();
+  await page.getByRole('button', { name: 'Find in note' }).click();
+  await page.locator('#findIn').fill('charger');
+  await expect(page.locator('#findCount')).toHaveText('1 of 1');
+  await expect(page.getByRole('button', { name: 'Focus mode' })).toBeHidden();      // hidden on small screens
 });
